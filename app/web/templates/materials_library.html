@@ -1,0 +1,443 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-hero compact-hero compact-hero-single">
+  <div class="hero-intro hero-intro-compact">
+    <p class="eyebrow">Biblioteca</p>
+    <h1>Gestiona tus materiales sin afectar al catálogo base de la app.</h1>
+    <p class="hero-copy">
+      Los materiales que añadas, edites o elimines aquí se guardan solo en este navegador. El catálogo oficial del
+      proyecto permanece intacto para el resto de usuarios.
+    </p>
+    <div class="hero-actions">
+      <a class="primary-link" href="/">Volver a la calculadora</a>
+      <button type="button" class="secondary-button" id="export-materials">Exportar mis materiales</button>
+    </div>
+  </div>
+</section>
+
+<section class="workspace-section">
+  <div class="workspace-grid">
+    <section class="app-card form-card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Editor</p>
+          <h2>Crear o editar material</h2>
+        </div>
+      </div>
+
+      <form id="material-form" class="stack-form">
+        <div class="advanced-grid">
+          <label>
+            <span>ID técnico</span>
+            <input type="text" id="material-id" placeholder="ej: CFK_460" required>
+          </label>
+          <label>
+            <span>Nombre visible</span>
+            <input type="text" id="material-name" placeholder="ej: Carbon 460" required>
+          </label>
+          <label>
+            <span>Tipo de material</span>
+            <select id="material-category">
+              <option value="fiber">Fibra</option>
+              <option value="core">Core</option>
+            </select>
+          </label>
+          <label id="fiber-family-field">
+            <span>Familia de fibra</span>
+            <select id="material-fiber-family">
+              <option value="twill">Twill</option>
+              <option value="ud">UD</option>
+            </select>
+          </label>
+          <label>
+            <span>E1 (Pa)</span>
+            <input type="number" step="any" id="material-e1" required>
+          </label>
+          <label>
+            <span>E2 (Pa)</span>
+            <input type="number" step="any" id="material-e2" required>
+          </label>
+          <label>
+            <span>G12 (Pa)</span>
+            <input type="number" step="any" id="material-g12" required>
+          </label>
+          <label>
+            <span>Poisson de entrada</span>
+            <input type="number" step="any" id="material-poisson" required>
+          </label>
+          <label>
+            <span>Resistencia X</span>
+            <input type="number" step="any" id="material-strength-x" value="0">
+          </label>
+          <label>
+            <span>Resistencia X compresión</span>
+            <input type="number" step="any" id="material-strength-xc" value="0">
+          </label>
+          <label>
+            <span>Resistencia Y</span>
+            <input type="number" step="any" id="material-strength-y" value="0">
+          </label>
+          <label>
+            <span>Resistencia Y compresión</span>
+            <input type="number" step="any" id="material-strength-yc" value="0">
+          </label>
+          <label>
+            <span>Resistencia cortante</span>
+            <input type="number" step="any" id="material-strength-s" value="0">
+          </label>
+          <label>
+            <span>Espesor (mm)</span>
+            <input type="number" step="any" id="material-thickness" required>
+          </label>
+        </div>
+        <label>
+          <span>Notas</span>
+          <input type="text" id="material-notes" placeholder="Comentario opcional sobre el material">
+        </label>
+
+        <div class="submit-row">
+          <button type="submit" class="primary-button">Guardar material</button>
+          <button type="button" class="ghost-button" id="reset-material-form">Limpiar</button>
+        </div>
+      </form>
+    </section>
+
+    <aside class="app-card ingredients-card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Base</p>
+          <h2>Catálogo del proyecto</h2>
+        </div>
+      </div>
+
+      <div class="materials-block">
+        <div class="materials-block-head">
+          <h3>Fibra Twill</h3>
+          <span>Solo admite orientaciones ±45 o ±90</span>
+        </div>
+        <div class="ingredient-grid">
+        {% for material in base_twill_materials %}
+        <article class="ingredient-card">
+          <div class="ingredient-head">
+            <h3>{{ material.name }}</h3>
+            <span>{{ material.thickness_mm | fmt3 }} mm</span>
+          </div>
+          <dl>
+            <div><dt>ID</dt><dd>{{ material.id }}</dd></div>
+            <div><dt>Familia</dt><dd>Twill</dd></div>
+            <div><dt>E1</dt><dd>{{ (material.e1_pa / 1e9) | fmt3 }} GPa</dd></div>
+            <div><dt>E2</dt><dd>{{ (material.e2_pa / 1e9) | fmt3 }} GPa</dd></div>
+            <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
+          </dl>
+          <div class="library-actions">
+            <button type="button" class="ghost-button duplicate-base-material" data-material='{{ material | tojson }}'>Duplicar</button>
+          </div>
+        </article>
+        {% endfor %}
+        </div>
+      </div>
+
+      <div class="materials-block">
+        <div class="materials-block-head">
+          <h3>Fibra UD</h3>
+          <span>Solo admite orientación 0°</span>
+        </div>
+        <div class="ingredient-grid">
+        {% for material in base_ud_materials %}
+        <article class="ingredient-card">
+          <div class="ingredient-head">
+            <h3>{{ material.name }}</h3>
+            <span>{{ material.thickness_mm | fmt3 }} mm</span>
+          </div>
+          <dl>
+            <div><dt>ID</dt><dd>{{ material.id }}</dd></div>
+            <div><dt>Familia</dt><dd>UD</dd></div>
+            <div><dt>E1</dt><dd>{{ (material.e1_pa / 1e9) | fmt3 }} GPa</dd></div>
+            <div><dt>E2</dt><dd>{{ (material.e2_pa / 1e9) | fmt3 }} GPa</dd></div>
+            <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
+          </dl>
+          <div class="library-actions">
+            <button type="button" class="ghost-button duplicate-base-material" data-material='{{ material | tojson }}'>Duplicar</button>
+          </div>
+        </article>
+        {% endfor %}
+        </div>
+      </div>
+
+      <div class="materials-block">
+        <div class="materials-block-head">
+          <h3>Cores</h3>
+          <span>Disponibles para el selector de core</span>
+        </div>
+        <div class="ingredient-grid">
+        {% for material in base_core_materials %}
+        <article class="ingredient-card">
+          <div class="ingredient-head">
+            <h3>{{ material.name }}</h3>
+            <span>{{ material.thickness_mm | fmt3 }} mm</span>
+          </div>
+          <dl>
+            <div><dt>ID</dt><dd>{{ material.id }}</dd></div>
+            <div><dt>Tipo</dt><dd>Core</dd></div>
+            <div><dt>E1</dt><dd>{{ (material.e1_pa / 1e9) | fmt3 }} GPa</dd></div>
+            <div><dt>E2</dt><dd>{{ (material.e2_pa / 1e9) | fmt3 }} GPa</dd></div>
+            <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
+          </dl>
+          <div class="library-actions">
+            <button type="button" class="ghost-button duplicate-base-material" data-material='{{ material | tojson }}'>Duplicar</button>
+          </div>
+        </article>
+        {% endfor %}
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<section class="results-section">
+  <div class="section-heading">
+    <p class="eyebrow">Personal</p>
+    <h2>Tus materiales guardados</h2>
+    <p>Estos cambios viven solo en este navegador. Puedes exportarlos para conservarlos o compartirlos.</p>
+  </div>
+  <div class="results-grid">
+    <article class="app-card result-card result-card-primary">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Biblioteca local</p>
+          <h2>Materiales personalizados</h2>
+        </div>
+      </div>
+      <div class="ingredient-grid" id="library-custom-materials">
+        <article class="empty-state-card" id="library-empty-state">
+          <p>No has creado materiales personalizados todavía.</p>
+        </article>
+      </div>
+    </article>
+  </div>
+</section>
+
+<script>
+  const STORAGE_KEY = "laminate_tool_custom_materials_v1";
+  const materialForm = document.getElementById("material-form");
+  const libraryContainer = document.getElementById("library-custom-materials");
+  const emptyState = document.getElementById("library-empty-state");
+  const exportButton = document.getElementById("export-materials");
+  const fiberFamilyField = document.getElementById("fiber-family-field");
+
+  const fieldMap = {
+    id: document.getElementById("material-id"),
+    name: document.getElementById("material-name"),
+    material_category: document.getElementById("material-category"),
+    fiber_family: document.getElementById("material-fiber-family"),
+    e1_pa: document.getElementById("material-e1"),
+    e2_pa: document.getElementById("material-e2"),
+    g12_pa: document.getElementById("material-g12"),
+    poisson_input: document.getElementById("material-poisson"),
+    strength_x: document.getElementById("material-strength-x"),
+    strength_x_compression: document.getElementById("material-strength-xc"),
+    strength_y: document.getElementById("material-strength-y"),
+    strength_y_compression: document.getElementById("material-strength-yc"),
+    strength_s: document.getElementById("material-strength-s"),
+    thickness_mm: document.getElementById("material-thickness"),
+    notes: document.getElementById("material-notes"),
+  };
+
+  const loadMaterials = () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw
+        ? JSON.parse(raw).map((material) => ({
+            material_category: "fiber",
+            fiber_family: material.fiber_family ?? ((material.material_category || "fiber") === "fiber" ? "twill" : null),
+            ...material,
+          }))
+        : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveMaterials = (materials) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(materials));
+  };
+
+  const reservedIds = new Set(["RC416T", "UD", "Honeycomb", "Dummy"]);
+  let customMaterials = loadMaterials();
+  let editingMaterialId = null;
+
+  const syncFiberFamilyVisibility = () => {
+    const isFiber = fieldMap.material_category.value === "fiber";
+    fiberFamilyField.hidden = !isFiber;
+    if (!isFiber) {
+      fieldMap.fiber_family.value = "twill";
+    }
+  };
+
+  const clearForm = () => {
+    editingMaterialId = null;
+    Object.values(fieldMap).forEach((field) => {
+      field.value = "";
+    });
+    fieldMap.strength_x.value = "0";
+    fieldMap.strength_x_compression.value = "0";
+    fieldMap.strength_y.value = "0";
+    fieldMap.strength_y_compression.value = "0";
+    fieldMap.strength_s.value = "0";
+    fieldMap.material_category.value = "fiber";
+    fieldMap.fiber_family.value = "twill";
+    syncFiberFamilyVisibility();
+  };
+
+  const fillForm = (material) => {
+    editingMaterialId = material.id;
+    Object.entries(fieldMap).forEach(([key, field]) => {
+      field.value = material[key] ?? "";
+    });
+    syncFiberFamilyVisibility();
+  };
+
+  const renderCustomMaterials = () => {
+    libraryContainer.querySelectorAll(".custom-material-card").forEach((node) => node.remove());
+    if (!customMaterials.length) {
+      emptyState.hidden = false;
+      return;
+    }
+    emptyState.hidden = true;
+
+    customMaterials.forEach((material) => {
+      const familyLabel = material.material_category === "fiber"
+        ? (material.fiber_family === "ud" ? "UD" : "Twill")
+        : "-";
+      const card = document.createElement("article");
+      card.className = "ingredient-card custom-material-card";
+      card.innerHTML = `
+        <div class="ingredient-head">
+          <h3>${material.name}</h3>
+          <span>${Number(material.thickness_mm).toFixed(3)} mm</span>
+        </div>
+        <dl>
+          <div><dt>ID</dt><dd>${material.id}</dd></div>
+          <div><dt>Tipo</dt><dd>${material.material_category === "core" ? "Core" : "Fibra"}</dd></div>
+          <div><dt>Familia</dt><dd>${familyLabel}</dd></div>
+          <div><dt>E1</dt><dd>${(Number(material.e1_pa) / 1e9).toFixed(3)} GPa</dd></div>
+          <div><dt>E2</dt><dd>${(Number(material.e2_pa) / 1e9).toFixed(3)} GPa</dd></div>
+          <div><dt>G12</dt><dd>${(Number(material.g12_pa) / 1e9).toFixed(3)} GPa</dd></div>
+        </dl>
+        <p class="material-note">${material.notes || "Sin notas adicionales."}</p>
+        <div class="library-actions">
+          <button type="button" class="ghost-button edit-custom-material" data-id="${material.id}">Editar</button>
+          <button type="button" class="ghost-button delete-custom-material" data-id="${material.id}">Borrar</button>
+        </div>
+      `;
+      libraryContainer.appendChild(card);
+    });
+  };
+
+  const slugify = (value) =>
+    value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .toUpperCase();
+
+  materialForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const payload = Object.fromEntries(
+      Object.entries(fieldMap).map(([key, field]) => [key, field.value.trim()])
+    );
+
+    payload.id = slugify(payload.id || payload.name);
+    payload.user_selectable = true;
+    payload.fiber_family = payload.material_category === "fiber" ? payload.fiber_family || "twill" : null;
+
+    const numericKeys = [
+      "e1_pa",
+      "e2_pa",
+      "g12_pa",
+      "poisson_input",
+      "strength_x",
+      "strength_x_compression",
+      "strength_y",
+      "strength_y_compression",
+      "strength_s",
+      "thickness_mm",
+    ];
+    numericKeys.forEach((key) => {
+      payload[key] = Number(payload[key]);
+    });
+
+    if (!payload.id || !payload.name) {
+      return;
+    }
+    if (reservedIds.has(payload.id) && editingMaterialId !== payload.id) {
+      alert("Ese identificador ya está reservado por el catálogo base.");
+      return;
+    }
+    if (customMaterials.some((material) => material.id === payload.id) && editingMaterialId !== payload.id) {
+      alert("Ya existe un material personalizado con ese ID.");
+      return;
+    }
+
+    customMaterials = customMaterials.filter((material) => material.id !== editingMaterialId);
+    customMaterials.push(payload);
+    customMaterials.sort((a, b) => a.name.localeCompare(b.name));
+    saveMaterials(customMaterials);
+    renderCustomMaterials();
+    clearForm();
+  });
+
+  libraryContainer.addEventListener("click", (event) => {
+    const editButton = event.target.closest(".edit-custom-material");
+    const deleteButton = event.target.closest(".delete-custom-material");
+
+    if (editButton) {
+      const material = customMaterials.find((item) => item.id === editButton.dataset.id);
+      if (material) {
+        fillForm(material);
+      }
+    }
+
+    if (deleteButton) {
+      customMaterials = customMaterials.filter((item) => item.id !== deleteButton.dataset.id);
+      saveMaterials(customMaterials);
+      renderCustomMaterials();
+      if (editingMaterialId === deleteButton.dataset.id) {
+        clearForm();
+      }
+    }
+  });
+
+  document.querySelectorAll(".duplicate-base-material").forEach((button) => {
+    button.addEventListener("click", () => {
+      const material = JSON.parse(button.dataset.material);
+      fillForm({
+        ...material,
+        id: `${material.id}_CUSTOM`,
+        name: `${material.name} Custom`,
+        notes: `Duplicado desde material base ${material.name}.`,
+      });
+    });
+  });
+
+  document.getElementById("reset-material-form").addEventListener("click", () => {
+    clearForm();
+  });
+
+  fieldMap.material_category.addEventListener("change", syncFiberFamilyVisibility);
+
+  exportButton.addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(customMaterials, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "custom-material-library.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  });
+
+  renderCustomMaterials();
+  clearForm();
+</script>
+{% endblock %}

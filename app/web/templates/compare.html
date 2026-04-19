@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-hero compact-hero compact-hero-single">
+  <div class="hero-intro hero-intro-compact">
+    <p class="eyebrow">Comparador</p>
+    <h1>Compara tus laminados guardados lado a lado.</h1>
+    <p class="hero-copy">
+      Esta vista convierte el historial local en una herramienta de decisión. Puedes contrastar apilados, espesores,
+      propiedades equivalentes y la métrica objetivo antes de exportar o seguir iterando.
+    </p>
+    <div class="hero-actions">
+      <a class="primary-link" href="/results">Elegir resultados</a>
+      <a class="secondary-link" href="/">Volver a la calculadora</a>
+    </div>
+  </div>
+</section>
+
+<section class="results-section">
+  <div class="section-heading">
+    <p class="eyebrow">Selección</p>
+    <h2>Comparativa activa</h2>
+    <p>Se muestran los resultados que hayas marcado en la página de Resultados. Si no hay selección, puedes crearla desde allí.</p>
+  </div>
+
+  <article class="app-card empty-results-card" id="compare-empty-state" hidden>
+    <p class="card-kicker">Sin selección</p>
+    <h2>Aún no hay resultados elegidos para comparar</h2>
+    <p>Ve a la página de Resultados, marca entre 2 y 4 configuraciones y vuelve aquí para verlas lado a lado.</p>
+    <div class="hero-actions">
+      <a class="primary-link" href="/results">Ir a Resultados</a>
+    </div>
+  </article>
+
+  <div id="compare-content" hidden>
+    <div class="compare-highlights" id="compare-highlights"></div>
+
+    <article class="app-card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Decisión</p>
+          <h2>Resumen rápido</h2>
+        </div>
+      </div>
+      <div class="compare-insights" id="compare-insights"></div>
+    </article>
+
+    <article class="app-card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Comparación</p>
+          <h2>Tabla lado a lado</h2>
+        </div>
+      </div>
+      <div class="compare-table-wrap">
+        <table class="compare-table" id="compare-table"></table>
+      </div>
+    </article>
+  </div>
+</section>
+
+<script>
+  const HISTORY_KEY = "laminate_tool_history_v1";
+  const COMPARE_SELECTION_KEY = "laminate_tool_compare_selection_v1";
+  const compareEmptyState = document.getElementById("compare-empty-state");
+  const compareContent = document.getElementById("compare-content");
+  const compareHighlights = document.getElementById("compare-highlights");
+  const compareInsights = document.getElementById("compare-insights");
+  const compareTable = document.getElementById("compare-table");
+
+  const loadHistory = () => {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const loadSelection = () => {
+    try {
+      const raw = sessionStorage.getItem(COMPARE_SELECTION_KEY) || localStorage.getItem(COMPARE_SELECTION_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const formatNumber = (value, suffix = "") => `${Number(value || 0).toFixed(3)}${suffix}`;
+
+  const buildLaminateText = (entry) => {
+    const layers = Array.isArray(entry.form_state?.layers) ? entry.form_state.layers : [];
+    const sequence = layers
+      .map((layer) => Number(layer.theta_deg || 0).toFixed(0))
+      .join(" / ");
+    return `[${sequence}]${entry.summary.is_symmetric ? " S" : ""}`;
+  };
+
+  const buildMaterialText = (entry) => {
+    const layers = Array.isArray(entry.form_state?.layers) ? entry.form_state.layers : [];
+    return [...new Set(layers.map((layer) => layer.material_id).filter(Boolean))].join(", ");
+  };
+
+  const renderHighlights = (entries) => {
+    const bestElastic = [...entries].sort((left, right) => Number(right.summary.elastic_gradient_theory) - Number(left.summary.elastic_gradient_theory))[0];
+    const bestEI = [...entries].sort((left, right) => Number(right.summary.ei_theory) - Number(left.summary.ei_theory))[0];
+    const lightest = [...entries].sort((left, right) => Number(left.summary.total_thickness_mm) - Number(right.summary.total_thickness_mm))[0];
+
+    compareHighlights.innerHTML = `
+      <article class="app-card compare-highlight-card">
+        <p class="card-kicker">Objetivo</p>
+        <h2>Mayor elastic gradient theory</h2>
+        <strong>${formatNumber(bestElastic.summary.elastic_gradient_theory)}</strong>
+        <p>${buildLaminateText(bestElastic)} · ${buildMaterialText(bestElastic)}</p>
+      </article>
+      <article class="app-card compare-highlight-card">
+        <p class="card-kicker">Rigidez</p>
+        <h2>Mayor EI theory</h2>
+        <strong>${formatNumber(bestEI.summary.ei_theory)}</strong>
+        <p>${buildLaminateText(bestEI)} · ${buildMaterialText(bestEI)}</p>
+      </article>
+      <article class="app-card compare-highlight-card">
+        <p class="card-kicker">Compacidad</p>
+        <h2>Menor espesor total</h2>
+        <strong>${formatNumber(lightest.summary.total_thickness_mm, " mm")}</strong>
+        <p>${buildLaminateText(lightest)} · ${buildMaterialText(lightest)}</p>
+      </article>
+    `;
+  };
+
+  const renderInsights = (entries) => {
+    const ranking = [...entries].sort((left, right) => Number(right.summary.elastic_gradient_theory) - Number(left.summary.elastic_gradient_theory));
+    compareInsights.innerHTML = ranking
+      .map((entry, index) => `
+        <article class="compare-insight-item">
+          <span class="compare-rank">#${index + 1}</span>
+          <div>
+            <h3>${buildLaminateText(entry)}</h3>
+            <p>${buildMaterialText(entry)} · ${entry.summary.visible_layers} capas · Core ${entry.summary.core_material_id}</p>
+          </div>
+          <strong>${formatNumber(entry.summary.elastic_gradient_theory)}</strong>
+        </article>
+      `)
+      .join("");
+  };
+
+  const metricRows = [
+    { label: "Elastic gradient theory", getValue: (entry) => formatNumber(entry.summary.elastic_gradient_theory) },
+    { label: "EI theory", getValue: (entry) => formatNumber(entry.summary.ei_theory) },
+    { label: "Espesor de fibra", getValue: (entry) => formatNumber(entry.summary.fiber_thickness_mm, " mm") },
+    { label: "Espesor total", getValue: (entry) => formatNumber(entry.summary.total_thickness_mm, " mm") },
+    { label: "Capas visibles", getValue: (entry) => String(entry.summary.visible_layers) },
+    { label: "Simetría", getValue: (entry) => (entry.summary.is_symmetric ? "Sí" : "No") },
+    { label: "Core", getValue: (entry) => entry.summary.core_material_id },
+    { label: "Laminado", getValue: (entry) => buildLaminateText(entry) },
+    { label: "CF type", getValue: (entry) => buildMaterialText(entry) },
+    { label: "E11", getValue: (entry) => formatNumber(entry.result_data?.equivalent_properties?.e11_gpa, " GPa") },
+    { label: "E22", getValue: (entry) => formatNumber(entry.result_data?.equivalent_properties?.e22_gpa, " GPa") },
+    { label: "G12", getValue: (entry) => formatNumber(entry.result_data?.equivalent_properties?.g122_gpa, " GPa") },
+    { label: "G12G", getValue: (entry) => formatNumber(entry.result_data?.equivalent_properties?.g12g_gpa, " GPa") },
+    { label: "nu12", getValue: (entry) => formatNumber(entry.result_data?.equivalent_properties?.nu12) },
+    { label: "nu21", getValue: (entry) => formatNumber(entry.result_data?.equivalent_properties?.nu21) },
+  ];
+
+  const renderTable = (entries) => {
+    const header = `
+      <thead>
+        <tr>
+          <th>Métrica</th>
+          ${entries.map((entry, index) => `<th>Opción ${index + 1}<span>${buildLaminateText(entry)}</span></th>`).join("")}
+        </tr>
+      </thead>
+    `;
+
+    const body = `
+      <tbody>
+        ${metricRows
+          .map(
+            (row) => `
+              <tr>
+                <th>${row.label}</th>
+                ${entries.map((entry) => `<td>${row.getValue(entry)}</td>`).join("")}
+              </tr>
+            `,
+          )
+          .join("")}
+      </tbody>
+    `;
+
+    compareTable.innerHTML = `${header}${body}`;
+  };
+
+  const renderComparePage = () => {
+    const history = loadHistory();
+    const selection = loadSelection();
+    const selectedEntries = selection
+      .map((signature) => history.find((entry) => entry.signature === signature))
+      .filter(Boolean)
+      .slice(0, 4);
+
+    if (selectedEntries.length < 2) {
+      compareEmptyState.hidden = false;
+      compareContent.hidden = true;
+      return;
+    }
+
+    compareEmptyState.hidden = true;
+    compareContent.hidden = false;
+    renderHighlights(selectedEntries);
+    renderInsights(selectedEntries);
+    renderTable(selectedEntries);
+  };
+
+  renderComparePage();
+</script>
+{% endblock %}

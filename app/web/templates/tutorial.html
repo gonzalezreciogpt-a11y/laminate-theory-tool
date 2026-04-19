@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-hero compact-hero compact-hero-single">
+  <div class="hero-intro hero-intro-compact">
+    <p class="eyebrow">Guía</p>
+    <h1>Aprende a usar la app paso a paso.</h1>
+    <p class="hero-copy">
+      Esta página resume el flujo real de trabajo de la herramienta y se irá actualizando conforme añadamos nuevas
+      capacidades al proyecto.
+    </p>
+    <div class="hero-actions">
+      <a class="primary-link" href="/">Ir a la calculadora</a>
+      <a class="secondary-link" href="/materials-library">Ir a materiales</a>
+    </div>
+  </div>
+</section>
+
+<section class="results-section tutorial-section">
+  <div class="section-heading">
+    <p class="eyebrow">Recorrido</p>
+    <h2>Cómo trabajar con la app</h2>
+    <p>La idea es que un usuario no experto pueda empezar en modo básico y solo entrar en detalles técnicos cuando lo necesite.</p>
+  </div>
+
+  <div class="tutorial-grid">
+    <article class="app-card tutorial-card">
+      <p class="card-kicker">Paso 1</p>
+      <h2>Define el laminado</h2>
+      <p>Añade capas, elige un material para cada una y fija la orientación de cada lámina en grados.</p>
+    </article>
+
+    <article class="app-card tutorial-card">
+      <p class="card-kicker">Paso 2</p>
+      <h2>Activa la simetría si aplica</h2>
+      <p>Si tu laminado es simétrico, marca la opción para que el motor reproduzca la convención de referencia.</p>
+    </article>
+
+    <article class="app-card tutorial-card">
+      <p class="card-kicker">Paso 3</p>
+      <h2>Selecciona el core</h2>
+      <p>El core se usa dentro del bloque experimental legado, aunque no aparezca como una capa editable del stack.</p>
+    </article>
+
+    <article class="app-card tutorial-card">
+      <p class="card-kicker">Paso 4</p>
+      <h2>Calcula y revisa</h2>
+      <p>La app destaca el valor objetivo, los espesores y la secuencia final realmente usada por el motor.</p>
+    </article>
+
+    <article class="app-card tutorial-card">
+      <p class="card-kicker">Paso 5</p>
+      <h2>Guarda y compara</h2>
+      <p>Los cálculos quedan disponibles en Resultados para recuperarlos, compararlos y exportarlos a Excel.</p>
+    </article>
+  </div>
+</section>
+
+<section class="workspace-section tutorial-section">
+  <div class="workspace-grid tutorial-grid-wide">
+    <article class="app-card tutorial-card">
+      <p class="card-kicker">Modo básico</p>
+      <h2>Lo imprescindible para el usuario final</h2>
+      <ul class="message-list">
+        <li>Capas, materiales y orientaciones.</li>
+        <li>Selector de simetría.</li>
+        <li>Core de referencia.</li>
+        <li>Resultados principales con unidades claras.</li>
+      </ul>
+    </article>
+
+    <article class="app-card tutorial-card">
+      <p class="card-kicker">Modo avanzado</p>
+      <h2>Detalles técnicos bajo demanda</h2>
+      <ul class="message-list">
+        <li>Constantes del bloque experimental legado.</li>
+        <li>Dummy interna para compatibilidad exacta.</li>
+        <li>Traza técnica con z y matrices A, B y D.</li>
+      </ul>
+    </article>
+  </div>
+</section>
+
+<section class="results-section tutorial-section">
+  <div class="section-heading">
+    <p class="eyebrow">Materiales</p>
+    <h2>Biblioteca de materiales</h2>
+    <p>La biblioteca separa el catálogo base del proyecto de los materiales personalizados de cada usuario.</p>
+  </div>
+
+  <div class="tutorial-grid">
+    <article class="app-card tutorial-card">
+      <p class="card-kicker">Catálogo base</p>
+      <h2>Materiales oficiales</h2>
+      <p>Vienen con la app, no se pisan desde la interfaz y sirven como punto de partida común para el equipo.</p>
+    </article>
+
+    <article class="app-card tutorial-card">
+      <p class="card-kicker">Biblioteca local</p>
+      <h2>Materiales personalizados</h2>
+      <p>Se guardan solo en tu navegador. Puedes duplicar uno base, editar propiedades y exportar tu biblioteca.</p>
+    </article>
+
+    <article class="app-card tutorial-card">
+      <p class="card-kicker">Trazabilidad</p>
+      <h2>Sin tocar la referencia</h2>
+      <p>El motor sigue tomando el MATLAB legado como fuente de verdad y compara resultados en casos de referencia.</p>
+    </article>
+  </div>
+</section>
+
+<section class="results-section tutorial-section">
+  <div class="section-heading">
+    <p class="eyebrow">Comparación</p>
+    <h2>Resultados y comparador</h2>
+    <p>La app ya está preparada para iterar varias configuraciones sin perder contexto entre una prueba y la siguiente.</p>
+  </div>
+
+  <div class="tutorial-grid">
+    <article class="app-card tutorial-card">
+      <p class="card-kicker">Resultados</p>
+      <h2>Historial local</h2>
+      <p>Cada cálculo se guarda en tu navegador con su configuración, resumen numérico y resultado completo.</p>
+    </article>
+
+    <article class="app-card tutorial-card">
+      <p class="card-kicker">Comparador</p>
+      <h2>Lado a lado</h2>
+      <p>Puedes seleccionar entre 2 y 4 opciones desde Resultados para contrastar métricas clave en una sola vista.</p>
+    </article>
+
+    <article class="app-card tutorial-card">
+      <p class="card-kicker">Shuffle</p>
+      <h2>Exploración guiada</h2>
+      <p>La página de Shuffle toma el último laminado calculado y genera variantes de orientación y core, incluyendo un modo para explorar todas las capas a la vez.</p>
+    </article>
+
+    <article class="app-card tutorial-card">
+      <p class="card-kicker">Exportación</p>
+      <h2>Excel corporativo</h2>
+      <p>La sesión se puede descargar a un Excel con portada, resumen, gráficas y hojas dinámicas por número de capas.</p>
+    </article>
+  </div>
+</section>
+{% endblock %}

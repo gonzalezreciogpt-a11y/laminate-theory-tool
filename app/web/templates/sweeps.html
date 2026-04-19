@@ -1,0 +1,893 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-hero compact-hero compact-hero-single">
+  <div class="hero-intro hero-intro-compact">
+    <p class="eyebrow">Shuffle</p>
+    <h1>Explora variantes del último laminado calculado.</h1>
+    <p class="hero-copy">
+      Esta vista toma como base tu último cálculo, genera variantes de orientación y core, y puede explorar una sola
+      capa o varias capas a la vez manteniendo el reparto de 45 y 90 lo más equilibrado posible.
+    </p>
+    <div class="hero-actions">
+      <a class="primary-link" href="/">Volver a la calculadora</a>
+      <a class="secondary-link" href="/results">Ir a resultados</a>
+    </div>
+  </div>
+</section>
+
+<section class="workspace-section">
+  <div class="workspace-grid">
+    <section class="app-card form-card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Configuración</p>
+          <h2>Shuffle guiado</h2>
+        </div>
+      </div>
+
+      <article class="feedback-card feedback-card-danger" id="shuffle-missing-base" hidden>
+        <p class="eyebrow">Base necesaria</p>
+        <h2>Primero calcula un laminado</h2>
+      </article>
+
+      <form class="stack-form" id="shuffle-form">
+        <div class="advanced-grid shuffle-top-grid">
+          <label class="shuffle-control-panel">
+            <span>Seleccione modo de cálculo</span>
+            <select id="shuffle-mode">
+              <option value="single">Una capa</option>
+              <option value="multi">Varias capas</option>
+              <option value="all">Todas las capas</option>
+            </select>
+          </label>
+          <label class="shuffle-control-panel">
+            <span>Orientaciones a probar</span>
+            <div class="sweep-core-options" id="shuffle-angle-checklist"></div>
+          </label>
+        </div>
+
+        <div class="materials-block">
+          <div class="materials-block-head">
+            <h3>Capas a variar</h3>
+          </div>
+          <div class="sweep-core-options" id="shuffle-layer-checklist"></div>
+        </div>
+
+        <div class="toggle-field sweep-toggle">
+          <div>
+            <span class="toggle-title">Variar también el core</span>
+          </div>
+          <input type="checkbox" id="shuffle-enable-cores">
+        </div>
+
+        <div class="sweep-core-options" id="shuffle-core-options"></div>
+
+        <div class="advanced-grid">
+          <label>
+            <span>Máximo de variantes</span>
+            <input type="number" id="shuffle-max-variants" min="1" max="60" step="1" value="24">
+          </label>
+        </div>
+
+        <article class="feedback-card feedback-card-danger" id="shuffle-feedback" hidden>
+          <p class="eyebrow">Shuffle</p>
+          <h2>No se ha podido generar una exploración válida</h2>
+          <p id="shuffle-feedback-message">Revisa la selección de capas y vuelve a intentarlo.</p>
+        </article>
+
+        <div class="submit-row">
+          <button type="submit" class="primary-button" id="run-shuffle-button">Ejecutar shuffle</button>
+        </div>
+      </form>
+    </section>
+
+    <aside class="app-card ingredients-card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Base activa</p>
+          <h2>Laminado de partida</h2>
+        </div>
+      </div>
+      <div id="shuffle-base-summary" class="metric-grid metric-grid-compact"></div>
+      <div class="materials-block">
+        <div class="materials-block-head">
+          <h3>Secuencia actual</h3>
+        </div>
+        <div class="ingredient-grid" id="shuffle-base-layers"></div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<section class="results-section" id="shuffle-results-section" hidden>
+  <div class="section-heading">
+    <p class="eyebrow">Exploración</p>
+    <h2>Resultados del shuffle</h2>
+  </div>
+
+  <div class="compare-highlights" id="shuffle-highlights"></div>
+
+  <article class="app-card best-option-card" id="shuffle-best-option-card" hidden>
+    <div class="card-head">
+      <div>
+        <p class="card-kicker">Mejor opción</p>
+        <h2>Representación del mejor laminado</h2>
+      </div>
+    </div>
+    <div class="best-option-grid">
+      <div class="laminate-visual-column">
+        <div class="laminate-face-label">Cara superior</div>
+        <div class="laminate-annotated-frame">
+          <div class="laminate-visual laminate-visual-annotated" id="shuffle-best-visual"></div>
+        </div>
+        <div class="laminate-face-label">Cara inferior</div>
+      </div>
+      <div class="laminate-legend" id="shuffle-best-legend"></div>
+    </div>
+  </article>
+
+  <article class="app-card">
+    <div class="card-head">
+      <div>
+        <p class="card-kicker">Ranking</p>
+        <h2>Variantes calculadas</h2>
+      </div>
+      <div class="shuffle-table-actions">
+        <button type="button" class="secondary-button secondary-button-strong" id="save-shuffle-all">Guardar todas</button>
+        <button type="button" class="secondary-button secondary-button-strong" id="save-shuffle-top3">Guardar top 3</button>
+      </div>
+    </div>
+    <div class="compare-table-wrap">
+      <table class="compare-table" id="shuffle-results-table"></table>
+    </div>
+  </article>
+</section>
+
+<script id="all-materials-data" type="application/json">{{ all_materials_data | tojson }}</script>
+<script>
+  const LAST_ANALYSIS_KEY = "laminate_tool_last_analysis_v1";
+  const HISTORY_KEY = "laminate_tool_history_v1";
+  const CUSTOM_MATERIALS_KEY = "laminate_tool_custom_materials_v1";
+  const SHUFFLE_STATE_KEY = "laminate_tool_last_shuffle_v1";
+  const HISTORY_LIMIT = 200;
+  const ALLOWED_ANGLES = new Set([-90, -45, 0, 45, 90]);
+
+  const shuffleMissingBase = document.getElementById("shuffle-missing-base");
+  const shuffleForm = document.getElementById("shuffle-form");
+  const shuffleMode = document.getElementById("shuffle-mode");
+  const shuffleAngleChecklist = document.getElementById("shuffle-angle-checklist");
+  const shuffleEnableCores = document.getElementById("shuffle-enable-cores");
+  const shuffleCoreOptions = document.getElementById("shuffle-core-options");
+  const shuffleLayerChecklist = document.getElementById("shuffle-layer-checklist");
+  const shuffleMaxVariants = document.getElementById("shuffle-max-variants");
+  const shuffleFeedback = document.getElementById("shuffle-feedback");
+  const shuffleFeedbackMessage = document.getElementById("shuffle-feedback-message");
+  const shuffleBaseSummary = document.getElementById("shuffle-base-summary");
+  const shuffleBaseLayers = document.getElementById("shuffle-base-layers");
+  const shuffleResultsSection = document.getElementById("shuffle-results-section");
+  const shuffleHighlights = document.getElementById("shuffle-highlights");
+  const shuffleResultsTable = document.getElementById("shuffle-results-table");
+  const shuffleBestOptionCard = document.getElementById("shuffle-best-option-card");
+  const shuffleBestVisual = document.getElementById("shuffle-best-visual");
+  const shuffleBestLegend = document.getElementById("shuffle-best-legend");
+  const saveShuffleAll = document.getElementById("save-shuffle-all");
+  const saveShuffleTop3 = document.getElementById("save-shuffle-top3");
+  const runShuffleButton = document.getElementById("run-shuffle-button");
+  const allBaseMaterials = JSON.parse(document.getElementById("all-materials-data").textContent);
+
+  let baseEntry = null;
+  let latestShuffleEntries = [];
+
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+  const formatNumber = (value, suffix = "") => `${Number(value || 0).toFixed(3)}${suffix}`;
+
+  const loadCustomMaterials = () => {
+    try {
+      const raw = localStorage.getItem(CUSTOM_MATERIALS_KEY);
+      return raw
+        ? JSON.parse(raw).map((material) => ({
+            fiber_family:
+              material.fiber_family ?? ((material.material_category || "fiber") === "fiber" ? "twill" : null),
+            ...material,
+          }))
+        : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const loadBaseEntry = () => {
+    try {
+      const raw = localStorage.getItem(LAST_ANALYSIS_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const loadHistory = () => {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveHistory = (entries) => {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+  };
+
+  const buildMaterialCatalog = () => {
+    return [...allBaseMaterials, ...loadCustomMaterials()];
+  };
+
+  const buildCoreMaterials = () => buildMaterialCatalog().filter((material) => material.material_category === "core");
+  const getMaterialForLayer = (layer) => buildMaterialCatalog().find((material) => material.id === layer.material_id);
+  const getAllowedAnglesForLayer = (layer) => {
+    const material = getMaterialForLayer(layer);
+    if (material?.fiber_family === "ud") {
+      return [0];
+    }
+    return [45, 90];
+  };
+
+  const renderAngleChecklist = () => {
+    shuffleAngleChecklist.innerHTML = `
+      <label class="history-compare-toggle">
+        <input type="checkbox" class="shuffle-angle-checkbox" value="45" checked>
+        <span>+-45</span>
+      </label>
+      <label class="history-compare-toggle">
+        <input type="checkbox" class="shuffle-angle-checkbox" value="90" checked>
+        <span>+-90</span>
+      </label>
+    `;
+  };
+
+  const parseAngles = () =>
+    [...new Set(
+      [...shuffleAngleChecklist.querySelectorAll(".shuffle-angle-checkbox:checked")]
+        .map((checkbox) => Math.abs(Number(checkbox.value)))
+        .filter((item) => Number.isFinite(item) && [45, 90].includes(item))
+    )];
+
+  const showShuffleFeedback = (message) => {
+    shuffleFeedbackMessage.textContent = message;
+    shuffleFeedback.hidden = false;
+  };
+
+  const hideShuffleFeedback = () => {
+    shuffleFeedback.hidden = true;
+  };
+
+  const buildSignature = (state) => JSON.stringify({
+    layers: state.layers,
+    is_symmetric: state.is_symmetric,
+    core_material_id: state.core_material_id,
+    insert_dummy_layer_for_odd_compatibility: state.insert_dummy_layer_for_odd_compatibility,
+  });
+
+  const calculateVisibleTotalThickness = (request, result) => {
+    const materialCatalog = buildMaterialCatalog();
+    const multiplier = request.is_symmetric ? 2 : 1;
+    const core = materialCatalog.find((material) => material.id === request.core_material_id);
+    return (Number(result.trace.espesor_total_mm || 0) * multiplier) + Number(core?.thickness_mm || 0);
+  };
+
+  const buildHistoryEntry = (batchEntry) => {
+    const request = batchEntry.request;
+    const result = batchEntry.result;
+    const visibleLayers = Array.isArray(result.generated_layers)
+      ? result.generated_layers.filter((layer) => layer.material_id !== "Dummy").length
+      : request.layers.length;
+    return {
+      signature: buildSignature(request),
+      saved_at: new Date().toISOString(),
+      form_state: request,
+      summary: {
+        elastic_gradient_theory: result.three_point_bending.elastic_gradient_theory,
+        ei_theory: result.three_point_bending.ei_theory,
+        fiber_thickness_mm: result.trace.espesor_total_mm,
+        total_thickness_mm: calculateVisibleTotalThickness(request, result),
+        core_material_id: request.core_material_id,
+        is_symmetric: request.is_symmetric,
+        visible_layers: visibleLayers,
+      },
+      result_data: result,
+    };
+  };
+
+  const loadShuffleState = () => {
+    try {
+      const raw = localStorage.getItem(SHUFFLE_STATE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const persistShuffleState = () => {
+    if (!baseEntry?.form_state?.layers?.length) {
+      return;
+    }
+    const payload = {
+      base_signature: baseEntry.signature || buildSignature(baseEntry.form_state),
+      controls: {
+        mode: shuffleMode.value,
+        angles: [...shuffleAngleChecklist.querySelectorAll(".shuffle-angle-checkbox:checked")].map((checkbox) => checkbox.value),
+        layer_indices: [...shuffleLayerChecklist.querySelectorAll(".shuffle-layer-checkbox:checked")].map((checkbox) => Number(checkbox.value)),
+        enable_cores: shuffleEnableCores.checked,
+        core_ids: [...shuffleCoreOptions.querySelectorAll(".shuffle-core-checkbox:checked")].map((checkbox) => checkbox.value),
+        max_variants: shuffleMaxVariants.value,
+      },
+      results: latestShuffleEntries,
+    };
+    localStorage.setItem(SHUFFLE_STATE_KEY, JSON.stringify(payload));
+  };
+
+  const renderBaseSummary = () => {
+    const formState = baseEntry.form_state;
+    shuffleBaseSummary.innerHTML = `
+      <div><span>Capas visibles</span><strong>${formState.layers.length}</strong></div>
+      <div><span>Core</span><strong>${formState.core_material_id}</strong></div>
+      <div><span>Simetría</span><strong>${formState.is_symmetric ? "Sí" : "No"}</strong></div>
+      <div><span>Elastic gradient theory</span><strong>${formatNumber(baseEntry.summary.elastic_gradient_theory)}</strong></div>
+    `;
+  };
+
+  const renderBaseLayers = () => {
+    shuffleBaseLayers.innerHTML = "";
+    baseEntry.form_state.layers.forEach((layer, index) => {
+      const card = document.createElement("article");
+      card.className = "ingredient-card";
+      card.innerHTML = `
+        <div class="ingredient-head">
+          <h3>Capa ${index + 1}</h3>
+          <span>${Number(layer.theta_deg).toFixed(3)} deg</span>
+        </div>
+        <dl>
+          <div><dt>Material</dt><dd>${layer.material_id}</dd></div>
+          <div><dt>Orientación</dt><dd>${Number(layer.theta_deg).toFixed(3)} deg</dd></div>
+        </dl>
+      `;
+      shuffleBaseLayers.appendChild(card);
+    });
+  };
+
+  const renderLayerChecklist = () => {
+    const selectableLayers = baseEntry.form_state.layers
+      .map((layer, index) => ({ layer, index }))
+      .filter(({ layer }) => getMaterialForLayer(layer)?.fiber_family !== "ud");
+
+    if (!selectableLayers.length) {
+      shuffleLayerChecklist.innerHTML = `
+        <article class="empty-state-card">
+          <p>No hay capas Twill seleccionables en este laminado.</p>
+        </article>
+      `;
+      return;
+    }
+
+    shuffleLayerChecklist.innerHTML = selectableLayers
+      .map((layer, index) => `
+        <label class="history-compare-toggle">
+          <input type="checkbox" class="shuffle-layer-checkbox" value="${layer.index}" ${index === 0 ? "checked" : ""}>
+          <span>Capa ${layer.index + 1} - ${layer.layer.material_id} - ${Number(layer.layer.theta_deg).toFixed(0)} deg</span>
+        </label>
+      `)
+      .join("");
+  };
+
+  const applyShuffleControls = (controls) => {
+    if (!controls) {
+      syncChecklistMode();
+      return;
+    }
+
+    shuffleMode.value = controls.mode || "single";
+
+    const selectedAngles = new Set((controls.angles || []).map((value) => String(value)));
+    shuffleAngleChecklist.querySelectorAll(".shuffle-angle-checkbox").forEach((checkbox) => {
+      checkbox.checked = selectedAngles.size ? selectedAngles.has(checkbox.value) : true;
+    });
+
+    const selectedLayers = new Set((controls.layer_indices || []).map((value) => Number(value)));
+    shuffleLayerChecklist.querySelectorAll(".shuffle-layer-checkbox").forEach((checkbox, index) => {
+      checkbox.checked = selectedLayers.size ? selectedLayers.has(Number(checkbox.value)) : index === 0;
+    });
+
+    shuffleEnableCores.checked = Boolean(controls.enable_cores);
+    const selectedCores = new Set((controls.core_ids || []).map((value) => String(value)));
+    shuffleCoreOptions.querySelectorAll(".shuffle-core-checkbox").forEach((checkbox) => {
+      checkbox.checked = selectedCores.size
+        ? selectedCores.has(checkbox.value)
+        : checkbox.value === baseEntry.form_state.core_material_id;
+    });
+
+    shuffleMaxVariants.value = controls.max_variants || "24";
+    syncChecklistMode();
+    shuffleCoreOptions.classList.toggle("sweep-core-options-disabled", !shuffleEnableCores.checked);
+  };
+
+  const syncLayerChecklistMode = () => {
+    const isSingle = shuffleMode.value === "single";
+    const checkboxes = [...shuffleLayerChecklist.querySelectorAll(".shuffle-layer-checkbox")];
+    if (isSingle && !checkboxes.some((checkbox) => checkbox.checked)) {
+      checkboxes[0].checked = true;
+    }
+    checkboxes.forEach((checkbox, index) => {
+      checkbox.disabled = false;
+      if (isSingle) {
+        checkbox.type = "radio";
+        checkbox.name = "shuffle-layer-choice";
+        if (!checkbox.checked && !checkboxes.some((item) => item.checked)) {
+          checkbox.checked = index === 0;
+        }
+      } else {
+        checkbox.type = "checkbox";
+        checkbox.name = "";
+      }
+    });
+  };
+
+  const renderCoreOptions = () => {
+    const cores = buildCoreMaterials();
+    shuffleCoreOptions.innerHTML = cores
+      .map((core, index) => `
+        <label class="history-compare-toggle">
+          <input type="checkbox" class="shuffle-core-checkbox" value="${core.id}" ${core.id === baseEntry.form_state.core_material_id || index === 0 ? "checked" : ""}>
+          <span>${core.name} - ${formatNumber(core.thickness_mm, " mm")}</span>
+        </label>
+      `)
+      .join("");
+  };
+
+  const buildPalette = (layers) => {
+    const palette = ["#15345f", "#c79a4f", "#2f6b4f", "#9a4d3c", "#5261a8", "#7a5f2f", "#2f7b90", "#6e447f"];
+    const map = new Map();
+    layers.forEach((layer) => {
+      if (!map.has(layer.material_id)) {
+        map.set(layer.material_id, palette[map.size % palette.length]);
+      }
+    });
+    return map;
+  };
+
+  const buildVisualSegments = (entry) => {
+    const visibleLayers = entry.result_data.generated_layers
+      .filter((layer) => layer.material_id !== "Dummy")
+      .map((layer, index) => ({
+        key: `top-${index}`,
+        material_id: layer.material_id,
+        thickness_mm: Number(layer.thickness_mm || 0),
+        orientation_label: `${Number(layer.theta_deg).toFixed(0)} deg`,
+        is_core: false,
+      }));
+
+    const mirrored = entry.form_state.is_symmetric
+      ? [...visibleLayers].reverse().map((layer, index) => ({
+          ...layer,
+          key: `bottom-${index}`,
+        }))
+      : [];
+
+    const materialCatalog = buildMaterialCatalog();
+    const core = materialCatalog.find((material) => material.id === entry.form_state.core_material_id);
+    const segments = [...visibleLayers];
+    if (core?.thickness_mm) {
+      segments.push({
+        key: "core",
+        material_id: entry.form_state.core_material_id,
+        thickness_mm: Number(core.thickness_mm),
+        orientation_label: "",
+        is_core: true,
+      });
+    }
+    segments.push(...mirrored);
+    return segments;
+  };
+
+  const renderBestVisual = (entry) => {
+    const segments = buildVisualSegments(entry);
+    const palette = buildPalette(segments.filter((segment) => !segment.is_core));
+
+    shuffleBestVisual.innerHTML = segments
+      .map((segment) => `
+        <div
+          class="laminate-segment laminate-segment-annotated${segment.is_core ? " laminate-core-segment" : ""}"
+          title="${segment.is_core ? segment.material_id : `${segment.material_id} - ${segment.orientation_label}`} - ${Number(segment.thickness_mm).toFixed(3)} mm"
+          style="--segment-share: ${Number(segment.thickness_mm)}; background: ${segment.is_core ? "" : palette.get(segment.material_id)};"
+        >
+          ${segment.is_core ? "" : `<span class="laminate-segment-label ${buildSegmentLabelClass(segment)}">${segment.orientation_label.replace(" deg", "°")}</span>`}
+        </div>
+      `)
+      .join("");
+
+    shuffleBestLegend.innerHTML = [...palette.entries()]
+      .map(([materialId, color]) => `
+        <div class="laminate-legend-item">
+          <span class="laminate-legend-swatch" style="background: ${color};"></span>
+          <div>
+            <strong>${materialId}</strong>
+          </div>
+        </div>
+      `)
+      .join("");
+
+    const materialCatalog = buildMaterialCatalog();
+    const core = materialCatalog.find((material) => material.id === entry.form_state.core_material_id);
+    if (core?.thickness_mm) {
+      shuffleBestLegend.innerHTML += `
+        <div class="laminate-legend-item">
+          <span class="laminate-legend-swatch laminate-core-swatch"></span>
+          <div>
+            <strong>${entry.form_state.core_material_id}</strong>
+          </div>
+        </div>
+      `;
+    }
+
+    shuffleBestOptionCard.hidden = false;
+  };
+
+  const buildSegmentLabelClass = (segment) => {
+    if (Number(segment.thickness_mm) <= 0.15) {
+      return "is-tiny";
+    }
+    if (Number(segment.thickness_mm) <= 0.25) {
+      return "is-small";
+    }
+    return "is-normal";
+  };
+
+  const getSelectedLayerIndices = () =>
+    [...shuffleLayerChecklist.querySelectorAll(".shuffle-layer-checkbox:checked")]
+      .map((checkbox) => Number(checkbox.value))
+      .sort((left, right) => left - right);
+
+  const countBalancedAngles = (layers) => {
+    const angles = layers
+      .map((layer) => Math.abs(Number(layer.theta_deg)))
+      .filter((theta) => theta !== 0);
+    const count45 = angles.filter((theta) => theta === 45).length;
+    const count90 = angles.filter((theta) => theta === 90).length;
+    return Math.abs(count45 - count90);
+  };
+
+  const buildSingleLayerVariants = (baseLayers, selectedIndex, angles) => {
+    const allowedAngles = angles.filter((theta) => getAllowedAnglesForLayer(baseLayers[selectedIndex]).includes(theta));
+    return allowedAngles.map((theta) => {
+      const candidate = JSON.parse(JSON.stringify(baseLayers));
+      candidate[selectedIndex].theta_deg = theta;
+      return candidate;
+    });
+  };
+
+  const buildMultiLayerVariants = (baseLayers, selectedIndices, angles, maxVariants) => {
+    const variants = [];
+    const current = JSON.parse(JSON.stringify(baseLayers));
+    const layerAngleOptions = selectedIndices.map((layerIndex) =>
+      angles.filter((theta) => getAllowedAnglesForLayer(baseLayers[layerIndex]).includes(theta))
+    );
+    if (layerAngleOptions.some((options) => options.length === 0)) {
+      return [];
+    }
+
+    const walk = (position) => {
+      if (variants.length >= maxVariants * 8) {
+        return;
+      }
+      if (position >= selectedIndices.length) {
+        variants.push(JSON.parse(JSON.stringify(current)));
+        return;
+      }
+
+      const layerIndex = selectedIndices[position];
+      layerAngleOptions[position].forEach((theta) => {
+        current[layerIndex].theta_deg = theta;
+        walk(position + 1);
+      });
+    };
+
+    walk(0);
+    const ranked = variants
+      .map((layers) => ({ layers, imbalance: countBalancedAngles(layers) }))
+      .sort((left, right) => left.imbalance - right.imbalance);
+    const bestImbalance = ranked.length ? ranked[0].imbalance : 0;
+    return ranked
+      .filter((item) => item.imbalance === bestImbalance)
+      .slice(0, maxVariants)
+      .map((item) => item.layers);
+  };
+
+  const buildBatchPayload = () => {
+    const mode = shuffleMode.value;
+    const baseLayers = JSON.parse(JSON.stringify(baseEntry.form_state.layers));
+    const angles = parseAngles();
+    const selectedIndices = getSelectedLayerIndices();
+    const selectedCores = shuffleEnableCores.checked
+      ? [...shuffleCoreOptions.querySelectorAll(".shuffle-core-checkbox:checked")].map((checkbox) => checkbox.value)
+      : [baseEntry.form_state.core_material_id];
+    const coresToUse = selectedCores.length ? selectedCores : [baseEntry.form_state.core_material_id];
+    const maxVariants = clamp(Number(shuffleMaxVariants.value) || 24, 1, 60);
+
+    if (!angles.length) {
+      return [];
+    }
+    if (mode === "single" && selectedIndices.length !== 1) {
+      return [];
+    }
+    if (mode === "multi" && selectedIndices.length < 2) {
+      return [];
+    }
+    if (mode === "all" && selectedIndices.length < 1) {
+      return [];
+    }
+
+    const layerVariants = mode === "single"
+      ? buildSingleLayerVariants(baseLayers, selectedIndices[0], angles)
+      : buildMultiLayerVariants(baseLayers, selectedIndices, angles, maxVariants);
+
+    const variants = [];
+    layerVariants.forEach((layers, variantIndex) => {
+      coresToUse.forEach((coreId) => {
+        if (variants.length >= maxVariants) {
+          return;
+        }
+        const request = JSON.parse(JSON.stringify(baseEntry.form_state));
+        request.layers = layers;
+        request.core_material_id = coreId;
+        const layerText = layers.map((layer) => Number(layer.theta_deg).toFixed(0)).join(" / ");
+        variants.push({
+          label: mode === "single"
+            ? `Capa ${selectedIndices[0] + 1} - [${layerText}] - Core ${coreId}`
+            : `Opción ${variantIndex + 1} - [${layerText}] - Core ${coreId}`,
+          request,
+        });
+      });
+    });
+
+    const uniqueVariants = [];
+    const seenRequests = new Set();
+    variants.forEach((variant) => {
+      const signature = JSON.stringify(variant.request);
+      if (seenRequests.has(signature) || uniqueVariants.length >= maxVariants) {
+        return;
+      }
+      seenRequests.add(signature);
+      uniqueVariants.push(variant);
+    });
+    return uniqueVariants;
+  };
+
+  const renderShuffleHighlights = (entries) => {
+    const best = entries[0];
+    const worst = entries[entries.length - 1];
+    const bestThin = [...entries].sort((left, right) => Number(left.summary.total_thickness_mm) - Number(right.summary.total_thickness_mm))[0];
+    shuffleHighlights.innerHTML = `
+      <article class="app-card compare-highlight-card">
+        <p class="card-kicker">Top 1</p>
+        <h2>Mejor objetivo</h2>
+        <strong>${formatNumber(best.summary.elastic_gradient_theory)}</strong>
+        <p>${best.label}</p>
+      </article>
+      <article class="app-card compare-highlight-card">
+        <p class="card-kicker">Compacidad</p>
+        <h2>Menor espesor total</h2>
+        <strong>${formatNumber(bestThin.summary.total_thickness_mm, " mm")}</strong>
+        <p>${bestThin.label}</p>
+      </article>
+      <article class="app-card compare-highlight-card">
+        <p class="card-kicker">Rango</p>
+        <h2>Separación de resultados</h2>
+        <strong>${formatNumber(best.summary.elastic_gradient_theory - worst.summary.elastic_gradient_theory)}</strong>
+        <p>Diferencia entre la mejor y la peor variante del shuffle.</p>
+      </article>
+    `;
+  };
+
+  const renderShuffleTable = (entries) => {
+    const savedSignatures = new Set(loadHistory().map((entry) => entry.signature));
+    shuffleResultsTable.innerHTML = `
+      <thead>
+        <tr>
+          <th>Variante</th>
+          <th>Elastic gradient theory</th>
+          <th>EI theory</th>
+          <th>Espesor total</th>
+          <th>Core</th>
+          <th>Capas</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${entries.map((entry, index) => `
+          <tr>
+            <th>${entry.label}</th>
+            <td>${formatNumber(entry.summary.elastic_gradient_theory)}</td>
+            <td>${formatNumber(entry.summary.ei_theory)}</td>
+            <td>${formatNumber(entry.summary.total_thickness_mm, " mm")}</td>
+            <td>${entry.summary.core_material_id}</td>
+            <td>${entry.summary.visible_layers}</td>
+            <td><button type="button" class="secondary-button save-shuffle-entry" data-entry-index="${index}" ${savedSignatures.has(entry.signature) ? "disabled" : ""}>${savedSignatures.has(entry.signature) ? "Guardada" : "Guardar en Resultados"}</button></td>
+          </tr>
+        `).join("")}
+      </tbody>
+    `;
+  };
+
+  const saveShuffleEntries = (entries) => {
+    const history = loadHistory();
+    const deduped = [...entries, ...history].reduce((accumulator, entry) => {
+      if (!accumulator.some((stored) => stored.signature === entry.signature)) {
+        accumulator.push(entry);
+      }
+      return accumulator;
+    }, []);
+    saveHistory(deduped.slice(0, HISTORY_LIMIT));
+  };
+
+  const renderShuffleResults = (entries, options = {}) => {
+    if (!entries.length) {
+      return;
+    }
+    latestShuffleEntries = entries;
+    shuffleResultsSection.hidden = false;
+    renderShuffleHighlights(latestShuffleEntries);
+    renderBestVisual(latestShuffleEntries[0]);
+    renderShuffleTable(latestShuffleEntries);
+    persistShuffleState();
+    if (options.scrollIntoView) {
+      shuffleResultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const restoreShuffleState = () => {
+    const snapshot = loadShuffleState();
+    if (!snapshot || !baseEntry?.form_state?.layers?.length) {
+      syncChecklistMode();
+      return;
+    }
+    applyShuffleControls(snapshot.controls);
+    if (Array.isArray(snapshot.results) && snapshot.results.length) {
+      renderShuffleResults(snapshot.results);
+    }
+  };
+
+  const runShuffle = async (event) => {
+    event.preventDefault();
+    hideShuffleFeedback();
+    shuffleBestOptionCard.hidden = true;
+    const variants = buildBatchPayload();
+    if (!variants.length) {
+      showShuffleFeedback("No se han encontrado variantes válidas con la selección actual de capas y orientaciones.");
+      return;
+    }
+
+    runShuffleButton.disabled = true;
+    runShuffleButton.textContent = "Calculando...";
+
+    try {
+      const response = await fetch("/api/batch-calculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entries: variants }),
+      });
+      const payload = await response.json();
+      const computedEntries = payload.entries
+        .map((entry) => ({
+          ...buildHistoryEntry(entry),
+          label: entry.label,
+        }))
+        .sort((left, right) => Number(right.summary.elastic_gradient_theory) - Number(left.summary.elastic_gradient_theory));
+      renderShuffleResults(computedEntries, { scrollIntoView: true });
+    } finally {
+      runShuffleButton.disabled = false;
+      runShuffleButton.textContent = "Ejecutar shuffle";
+    }
+  };
+
+  const syncChecklistMode = () => {
+    const isSingle = shuffleMode.value === "single";
+    const isAll = shuffleMode.value === "all";
+    const checkboxes = [...shuffleLayerChecklist.querySelectorAll(".shuffle-layer-checkbox")];
+    if (isAll) {
+      checkboxes.forEach((checkbox) => {
+        checkbox.type = "checkbox";
+        checkbox.name = "";
+        checkbox.checked = true;
+        checkbox.disabled = true;
+      });
+      return;
+    }
+    if (isSingle) {
+      const firstChecked = checkboxes.find((checkbox) => checkbox.checked) || checkboxes[0];
+      checkboxes.forEach((checkbox) => {
+        checkbox.type = "radio";
+        checkbox.name = "shuffle-layer-choice";
+        checkbox.checked = checkbox === firstChecked;
+        checkbox.disabled = false;
+      });
+      return;
+    }
+    checkboxes.forEach((checkbox, index) => {
+      checkbox.type = "checkbox";
+      checkbox.name = "";
+      checkbox.disabled = false;
+      if (!checkboxes.some((item) => item.checked) && index === 0) {
+        checkbox.checked = true;
+      }
+    });
+  };
+
+  const initializeShufflePage = () => {
+    baseEntry = loadBaseEntry();
+    if (!baseEntry?.form_state?.layers?.length) {
+      shuffleMissingBase.hidden = false;
+      shuffleForm.querySelectorAll("input, select, button").forEach((element) => {
+        element.disabled = true;
+      });
+      return;
+    }
+    renderAngleChecklist();
+    renderBaseSummary();
+    renderBaseLayers();
+    renderLayerChecklist();
+    renderCoreOptions();
+    shuffleCoreOptions.classList.toggle("sweep-core-options-disabled", !shuffleEnableCores.checked);
+  };
+
+  shuffleMode.addEventListener("change", syncChecklistMode);
+  shuffleLayerChecklist.addEventListener("change", (event) => {
+    if (!event.target.classList.contains("shuffle-layer-checkbox")) {
+      return;
+    }
+    if (shuffleMode.value === "single" && event.target.checked) {
+      shuffleLayerChecklist.querySelectorAll(".shuffle-layer-checkbox").forEach((checkbox) => {
+        if (checkbox !== event.target) {
+          checkbox.checked = false;
+        }
+      });
+    }
+  });
+  shuffleEnableCores.addEventListener("change", () => {
+    shuffleCoreOptions.classList.toggle("sweep-core-options-disabled", !shuffleEnableCores.checked);
+    persistShuffleState();
+  });
+  shuffleAngleChecklist.addEventListener("change", persistShuffleState);
+  shuffleCoreOptions.addEventListener("change", persistShuffleState);
+  shuffleLayerChecklist.addEventListener("change", persistShuffleState);
+  shuffleMode.addEventListener("change", persistShuffleState);
+  shuffleMaxVariants.addEventListener("change", persistShuffleState);
+
+  shuffleResultsTable.addEventListener("click", (event) => {
+    const button = event.target.closest(".save-shuffle-entry");
+    if (!button) {
+      return;
+    }
+    const entry = latestShuffleEntries[Number(button.dataset.entryIndex)];
+    if (!entry) {
+      return;
+    }
+    saveShuffleEntries([entry]);
+    renderShuffleTable(latestShuffleEntries);
+    persistShuffleState();
+  });
+
+  shuffleForm.addEventListener("submit", runShuffle);
+  saveShuffleAll.addEventListener("click", () => {
+    saveShuffleEntries(latestShuffleEntries);
+    renderShuffleTable(latestShuffleEntries);
+    persistShuffleState();
+  });
+  saveShuffleTop3.addEventListener("click", () => {
+    saveShuffleEntries(latestShuffleEntries.slice(0, 3));
+    renderShuffleTable(latestShuffleEntries);
+    persistShuffleState();
+  });
+
+  initializeShufflePage();
+  restoreShuffleState();
+</script>
+{% endblock %}

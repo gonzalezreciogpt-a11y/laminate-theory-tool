@@ -1,0 +1,20 @@
+{
+  "layers": [
+    {"material_id": "RC416T", "theta_deg": 45.0},
+    {"material_id": "UD", "theta_deg": 0.0},
+    {"material_id": "RC416T", "theta_deg": 90.0},
+    {"material_id": "Dummy", "theta_deg": 0.0}
+  ],
+  "is_symmetric": true,
+  "core_material_id": "Honeycomb",
+  "insert_dummy_layer_for_odd_compatibility": false,
+  "compatibility_mode": "legacy",
+  "three_point_bending": {
+    "elastic_gradient": 2649.0,
+    "rigidez_rig": 14871.0,
+    "span_m": 0.4,
+    "span_mm": 400.0,
+    "width_m": 0.275,
+    "width_mm": 275.0
+  }
+}

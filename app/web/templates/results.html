@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-hero compact-hero compact-hero-single">
+  <div class="hero-intro hero-intro-compact">
+    <p class="eyebrow">Resultados</p>
+    <h1>Consulta y recupera los cálculos guardados en este navegador.</h1>
+    <p class="hero-copy">
+      Los resultados se agrupan por número de capas visibles y se ordenan de mayor a menor según
+      <strong>EI teoría</strong>. Desde aquí también puedes seleccionar varias opciones para compararlas lado a lado.
+    </p>
+    <div class="hero-actions hero-actions-wide">
+      <a class="primary-link" href="/">Volver a la calculadora</a>
+      <a class="secondary-link" href="/compare">Abrir comparador</a>
+      <button type="button" class="secondary-button" id="clear-results-history">Vaciar historial</button>
+      <div class="hero-actions-spacer"></div>
+      <button type="button" class="excel-export-button" id="export-results-history" aria-label="Exportar resultados a Excel">
+        <span class="excel-export-icon" aria-hidden="true">
+          <svg viewBox="0 0 64 64" role="img" focusable="false">
+            <path d="M18 6h22l14 14v30a8 8 0 0 1-8 8H18a8 8 0 0 1-8-8V14a8 8 0 0 1 8-8Z" fill="#ffffff"/>
+            <path d="M40 6v14h14" fill="#dff3e7"/>
+            <path d="M40 6v10a4 4 0 0 0 4 4h10" fill="none" stroke="#1f7a45" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M18 6h22l14 14v30a8 8 0 0 1-8 8H18a8 8 0 0 1-8-8V14a8 8 0 0 1 8-8Z" fill="none" stroke="#1f7a45" stroke-width="3" stroke-linejoin="round"/>
+            <rect x="6" y="18" width="24" height="28" rx="5" fill="#1f7a45"/>
+            <path d="m13 24 10 16M23 24 13 40" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+            <path d="M36 30h12M36 38h12M36 46h8" stroke="#77b88f" stroke-width="3.5" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="excel-export-copy">
+          <strong>Exportar Excel</strong>
+          <small>Descargar sesión</small>
+        </span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<section class="results-section">
+  <div class="section-heading">
+    <p class="eyebrow">Sesión</p>
+    <h2>Historial de resultados</h2>
+    <p>Desde aquí puedes abrir un cálculo previo en la calculadora sin tener que reconfigurar el laminado manualmente.</p>
+  </div>
+  <div id="results-groups" class="results-groups"></div>
+  <article class="app-card empty-results-card" id="results-empty-state" hidden>
+    <p class="card-kicker">Sin datos</p>
+    <h2>Aún no hay resultados guardados</h2>
+    <p>Calcula al menos un laminado desde la calculadora para empezar a construir el historial de esta sesión local.</p>
+  </article>
+</section>
+<article class="feedback-card feedback-card-danger" id="export-feedback" hidden>
+  <p class="eyebrow">Exportación</p>
+  <h2>No se ha podido completar la descarga</h2>
+  <p id="export-feedback-message">Vuelve a intentarlo.</p>
+</article>
+
+<script>
+  const LAST_ANALYSIS_KEY = "laminate_tool_last_analysis_v1";
+  const HISTORY_KEY = "laminate_tool_history_v1";
+  const COMPARE_SELECTION_KEY = "laminate_tool_compare_selection_v1";
+  const resultsGroups = document.getElementById("results-groups");
+  const emptyState = document.getElementById("results-empty-state");
+  const clearButton = document.getElementById("clear-results-history");
+  const exportButton = document.getElementById("export-results-history");
+  const exportFeedback = document.getElementById("export-feedback");
+  const exportFeedbackMessage = document.getElementById("export-feedback-message");
+
+  const loadCompareSelection = () => {
+    try {
+      const raw = sessionStorage.getItem(COMPARE_SELECTION_KEY) || localStorage.getItem(COMPARE_SELECTION_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveCompareSelection = (selection) => {
+    const payload = JSON.stringify(selection);
+    sessionStorage.setItem(COMPARE_SELECTION_KEY, payload);
+    localStorage.setItem(COMPARE_SELECTION_KEY, payload);
+  };
+
+  const loadHistory = () => {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveHistory = (entries) => {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+  };
+
+  const sortEntries = (entries) =>
+    [...entries].sort((left, right) => Number(right.summary.ei_theory) - Number(left.summary.ei_theory));
+
+  const groupEntries = (entries) => {
+    const groups = new Map();
+    sortEntries(entries).forEach((entry) => {
+      const key = Number(entry.summary.visible_layers || 0);
+      const bucket = groups.get(key) || [];
+      bucket.push(entry);
+      groups.set(key, bucket);
+    });
+    return [...groups.entries()].sort((left, right) => right[0] - left[0]);
+  };
+
+  const renderHistory = () => {
+    const history = loadHistory();
+    const compareSelection = new Set(loadCompareSelection());
+    resultsGroups.innerHTML = "";
+    exportButton.disabled = history.length === 0;
+
+    if (!history.length) {
+      emptyState.hidden = false;
+      return;
+    }
+    emptyState.hidden = true;
+
+    groupEntries(history).forEach(([layerCount, entries]) => {
+      const section = document.createElement("section");
+      section.className = "result-group-section";
+
+      const cards = entries
+        .map((entry) => {
+          const savedAt = entry.saved_at ? new Date(entry.saved_at).toLocaleString("es-ES") : "Sin fecha";
+          return `
+            <article class="history-card history-card-wide">
+              <div class="history-card-head">
+                <div>
+                  <h3>${layerCount} capas visibles</h3>
+                  <p class="history-date">${savedAt}</p>
+                </div>
+                <span>${Number(entry.summary.elastic_gradient_theory).toFixed(3)}</span>
+              </div>
+              <label class="history-compare-toggle">
+                <input type="checkbox" class="compare-result-entry" data-signature='${entry.signature}' ${compareSelection.has(entry.signature) ? "checked" : ""}>
+                <span>Incluir en comparador</span>
+              </label>
+              <dl class="history-metrics">
+                <div><dt>Elastic gradient theory</dt><dd>${Number(entry.summary.elastic_gradient_theory).toFixed(3)}</dd></div>
+                <div><dt>EI teoría</dt><dd>${Number(entry.summary.ei_theory).toFixed(3)}</dd></div>
+                <div><dt>Espesor de fibra</dt><dd>${Number(entry.summary.fiber_thickness_mm).toFixed(3)} mm</dd></div>
+                <div><dt>Espesor total</dt><dd>${Number(entry.summary.total_thickness_mm).toFixed(3)} mm</dd></div>
+                <div><dt>Core</dt><dd>${entry.summary.core_material_id}</dd></div>
+                <div><dt>Simetría</dt><dd>${entry.summary.is_symmetric ? "Sí" : "No"}</dd></div>
+              </dl>
+              <div class="library-actions">
+                <button type="button" class="secondary-button open-result-entry" data-signature='${entry.signature}'>Abrir en calculadora</button>
+                <a class="secondary-link" href="/compare">Comparar</a>
+                <button type="button" class="ghost-button delete-result-entry" data-signature='${entry.signature}'>Borrar</button>
+              </div>
+            </article>
+          `;
+        })
+        .join("");
+
+      section.innerHTML = `
+        <details class="details-panel result-group-details">
+          <summary>
+            <span>${layerCount} capas</span>
+            <span class="result-group-summary-meta">${entries.length} resultados</span>
+          </summary>
+          <div class="details-body">
+            <div class="history-grid history-grid-wide">${cards}</div>
+          </div>
+        </details>
+      `;
+      resultsGroups.appendChild(section);
+    });
+  };
+
+  resultsGroups.addEventListener("click", (event) => {
+    const openButton = event.target.closest(".open-result-entry");
+    const deleteButton = event.target.closest(".delete-result-entry");
+    const history = loadHistory();
+
+    if (openButton) {
+      const entry = history.find((item) => item.signature === openButton.dataset.signature);
+      if (!entry) {
+        return;
+      }
+      localStorage.setItem(LAST_ANALYSIS_KEY, JSON.stringify(entry));
+      window.location.href = "/";
+    }
+
+    if (deleteButton) {
+      const filtered = history.filter((item) => item.signature !== deleteButton.dataset.signature);
+      saveHistory(filtered);
+      if (!filtered.length) {
+        localStorage.removeItem(LAST_ANALYSIS_KEY);
+      }
+      saveCompareSelection(loadCompareSelection().filter((signature) => signature !== deleteButton.dataset.signature));
+      renderHistory();
+    }
+  });
+
+  resultsGroups.addEventListener("change", (event) => {
+    const compareCheckbox = event.target.closest(".compare-result-entry");
+    if (!compareCheckbox) {
+      return;
+    }
+
+    const selection = loadCompareSelection().filter((signature) => signature !== compareCheckbox.dataset.signature);
+    if (compareCheckbox.checked) {
+      if (selection.length >= 4) {
+        compareCheckbox.checked = false;
+        showExportError("El comparador admite entre 2 y 4 resultados a la vez.");
+        return;
+      }
+      selection.push(compareCheckbox.dataset.signature);
+    }
+    saveCompareSelection(selection);
+  });
+
+  clearButton.addEventListener("click", () => {
+    localStorage.removeItem(HISTORY_KEY);
+    localStorage.removeItem(LAST_ANALYSIS_KEY);
+    localStorage.removeItem(COMPARE_SELECTION_KEY);
+    sessionStorage.removeItem(COMPARE_SELECTION_KEY);
+    renderHistory();
+  });
+
+  const showExportError = (message) => {
+    exportFeedbackMessage.textContent = message;
+    exportFeedback.hidden = false;
+  };
+
+  exportButton.addEventListener("click", async () => {
+    exportFeedback.hidden = true;
+    const history = loadHistory();
+    if (!history.length) {
+      showExportError("No hay resultados guardados para exportar.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/export-results", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ entries: history }),
+      });
+
+      if (!response.ok) {
+        showExportError(`La exportación ha fallado con estado ${response.status}.`);
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const disposition = response.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename=\"?([^"]+)\"?/);
+      anchor.href = url;
+      anchor.download = match ? match[1] : "resultados_sesion.xlsx";
+      anchor.style.display = "none";
+      document.body.appendChild(anchor);
+      anchor.click();
+
+      window.setTimeout(() => {
+        URL.revokeObjectURL(url);
+        anchor.remove();
+      }, 1000);
+    } catch (error) {
+      showExportError("Ha ocurrido un error inesperado al generar el Excel.");
+    }
+  });
+
+  renderHistory();
+</script>
+{% endblock %}

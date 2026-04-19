@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title or "Herramienta de laminados" }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="site-shell">
+        <a href="/" class="brand-lockup">
+          <img src="/static/assets/mad-formula-team-logo.png" alt="MAD Formula Team" class="brand-logo">
+          <div class="brand-copy">
+            <span class="brand-kicker">MAD Formula Team</span>
+            <strong>Herramienta de laminados</strong>
+          </div>
+        </a>
+        <nav class="top-nav" aria-label="Principal">
+          <a href="/" class="top-nav-link{% if request.url.path == '/' %} is-active{% endif %}">Calculadora</a>
+          <a href="/results" class="top-nav-link{% if request.url.path == '/results' %} is-active{% endif %}">Resultados</a>
+          <a href="/compare" class="top-nav-link{% if request.url.path == '/compare' %} is-active{% endif %}">Comparador</a>
+          <a href="/shuffle" class="top-nav-link{% if request.url.path in ['/shuffle', '/sweeps'] %} is-active{% endif %}">Shuffle</a>
+          <a href="/materials-library" class="top-nav-link{% if request.url.path == '/materials-library' %} is-active{% endif %}">Materiales</a>
+          <a href="/tutorial" class="top-nav-link{% if request.url.path == '/tutorial' %} is-active{% endif %}">Guía</a>
+        </nav>
+      </div>
+    </header>
+    <main class="page-shell">
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="site-footer">
+      <div class="site-shell site-footer-shell">
+        <p>{{ public_storage_notice }}</p>
+      </div>
+    </footer>
+  </body>
+</html>

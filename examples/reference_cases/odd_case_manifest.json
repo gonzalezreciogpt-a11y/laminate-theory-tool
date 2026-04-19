@@ -1,0 +1,11 @@
+{
+  "layers": [
+    {"material_id": "RC416T", "theta_deg": 45.0},
+    {"material_id": "UD", "theta_deg": 0.0},
+    {"material_id": "RC416T", "theta_deg": -45.0}
+  ],
+  "is_symmetric": true,
+  "core_material_id": "Honeycomb",
+  "insert_dummy_layer_for_odd_compatibility": false,
+  "compatibility_mode": "legacy"
+}

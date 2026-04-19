@@ -1,0 +1,818 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="page-hero compact-hero compact-hero-single">
+  <div class="hero-intro hero-intro-compact">
+    <p class="eyebrow">Calculadora</p>
+    <h1>Diseña tu laminado y valida el resultado con una interfaz clara.</h1>
+    <p class="hero-copy">
+      Configura capas, orientaciones y core, revisa la secuencia final que usa el motor y consulta solo los resultados
+      que necesita el usuario final. Los detalles técnicos quedan accesibles bajo demanda.
+    </p>
+    <div class="hero-actions">
+      <a class="primary-link" href="#laminate-workspace">Empezar</a>
+      <a class="secondary-link" href="/tutorial">Ver guía</a>
+    </div>
+  </div>
+</section>
+
+{% if errors %}
+<section class="feedback-card feedback-card-danger">
+  <p class="eyebrow">Validación</p>
+  <h2>No hemos podido procesar el laminado</h2>
+  <ul class="message-list">
+    {% for error in errors %}
+    <li>{{ error }}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="workspace-section" id="laminate-workspace">
+  <div class="section-heading">
+    <p class="eyebrow">Configuración</p>
+    <h2>Define el apilado</h2>
+  </div>
+
+  <div class="workspace-grid">
+    <section class="app-card form-card">
+      <div class="card-head card-head-stacked">
+        <div>
+          <p class="card-kicker">Laminado</p>
+          <h2>Definición del laminado</h2>
+        </div>
+        <div class="card-head-actions">
+          <button type="button" class="secondary-button" id="add-layer">Añadir capa</button>
+          <button type="submit" class="primary-button" form="laminate-form">Calcular laminado</button>
+          <button type="button" class="secondary-button" id="toggle-advanced">Modo avanzado</button>
+        </div>
+      </div>
+
+      <form method="post" class="stack-form" id="laminate-form">
+        <input type="hidden" name="custom_materials_json" id="custom-materials-json" value='{{ form_state.custom_materials | default([], true) | tojson }}'>
+
+        <div class="control-grid control-grid-top">
+          <label class="toggle-field">
+            <span class="toggle-title">Laminado simétrico</span>
+            <input type="checkbox" name="is_symmetric" {% if form_state.is_symmetric %}checked{% endif %}>
+          </label>
+          <label class="core-field">
+            <span>Core</span>
+            <select name="core_material_id" id="core-material-select" data-selected="{{ form_state.core_material_id }}">
+              {% for material in core_materials %}
+              <option value="{{ material.id }}" {% if material.id == form_state.core_material_id %}selected{% endif %}>{{ material.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+
+        <div id="layers" class="layer-stack">
+          {% for layer in form_state.layers %}
+          <div class="layer-row">
+            <div class="layer-index">Capa {{ loop.index }}</div>
+            <label>
+              <span>Material</span>
+              <select name="material_id" data-selected="{{ layer.material_id }}">
+                {% for material in materials %}
+                <option value="{{ material.id }}" {% if material.id == layer.material_id %}selected{% endif %}>{{ material.name }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              <span>Orientación (deg)</span>
+              <select name="theta_deg" data-selected="{{ layer.theta_deg }}"></select>
+            </label>
+            <button type="button" class="ghost-button remove-layer">Quitar</button>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div id="advanced-panel" class="advanced-panel hidden">
+          <div class="advanced-copy">
+            <p class="card-kicker">Avanzado</p>
+            <h3>Compatibilidad y ensayo</h3>
+          </div>
+
+          <label class="toggle-field advanced-toggle">
+            <span class="toggle-title">Dummy interna para compatibilidad</span>
+            <input type="checkbox" name="insert_dummy_layer_for_odd_compatibility" {% if form_state.insert_dummy_layer_for_odd_compatibility %}checked{% endif %}>
+          </label>
+
+          <div class="advanced-grid">
+            <label>
+              <span>Gradiente elástico</span>
+              <input type="number" step="any" name="elastic_gradient" value="{{ form_state.elastic_gradient }}">
+            </label>
+            <label>
+              <span>Rigidez del utillaje</span>
+              <input type="number" step="any" name="rigidez_rig" value="{{ form_state.rigidez_rig }}">
+            </label>
+            <label>
+              <span>Luz (m)</span>
+              <input type="number" step="any" name="span_m" value="{{ form_state.span_m }}">
+            </label>
+            <label>
+              <span>Luz (mm)</span>
+              <input type="number" step="any" name="span_mm" value="{{ form_state.span_mm }}">
+            </label>
+            <label>
+              <span>Ancho (m)</span>
+              <input type="number" step="any" name="width_m" value="{{ form_state.width_m }}">
+            </label>
+            <label>
+              <span>Ancho (mm)</span>
+              <input type="number" step="any" name="width_mm" value="{{ form_state.width_mm }}">
+            </label>
+          </div>
+        </div>
+
+      </form>
+    </section>
+
+    <aside class="app-card ingredients-card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Materiales</p>
+          <h2>Materiales disponibles</h2>
+        </div>
+        <a class="secondary-link inline-link" href="/materials-library">Editar</a>
+      </div>
+
+      <div class="materials-block">
+        <div class="materials-block-head">
+          <h3>Fibra Twill</h3>
+        </div>
+        <div class="ingredient-grid" id="base-materials-grid">
+          {% for material in materials %}
+          {% if material.fiber_family == "twill" %}
+          <article class="ingredient-card">
+            <div class="ingredient-head">
+              <h3>{{ material.name }}</h3>
+              <span>{{ material.thickness_mm | fmt3 }} mm</span>
+            </div>
+            <dl>
+              <div><dt>Familia</dt><dd>Twill</dd></div>
+              <div><dt>E1</dt><dd>{{ (material.e1_pa / 1e9) | fmt3 }} GPa</dd></div>
+              <div><dt>E2</dt><dd>{{ (material.e2_pa / 1e9) | fmt3 }} GPa</dd></div>
+              <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
+            </dl>
+          </article>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="materials-block">
+        <div class="materials-block-head">
+          <h3>Fibra UD</h3>
+        </div>
+        <div class="ingredient-grid">
+          {% for material in materials %}
+          {% if material.fiber_family == "ud" %}
+          <article class="ingredient-card">
+            <div class="ingredient-head">
+              <h3>{{ material.name }}</h3>
+              <span>{{ material.thickness_mm | fmt3 }} mm</span>
+            </div>
+            <dl>
+              <div><dt>Familia</dt><dd>UD</dd></div>
+              <div><dt>E1</dt><dd>{{ (material.e1_pa / 1e9) | fmt3 }} GPa</dd></div>
+              <div><dt>E2</dt><dd>{{ (material.e2_pa / 1e9) | fmt3 }} GPa</dd></div>
+              <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
+            </dl>
+          </article>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="materials-block">
+        <div class="materials-block-head">
+          <h3>Cores</h3>
+        </div>
+        <div class="ingredient-grid">
+          {% for material in core_materials %}
+          <article class="ingredient-card">
+            <div class="ingredient-head">
+              <h3>{{ material.name }}</h3>
+              <span>{{ material.thickness_mm | fmt3 }} mm</span>
+            </div>
+            <dl>
+              <div><dt>E1</dt><dd>{{ (material.e1_pa / 1e9) | fmt3 }} GPa</dd></div>
+              <div><dt>E2</dt><dd>{{ (material.e2_pa / 1e9) | fmt3 }} GPa</dd></div>
+              <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
+            </dl>
+          </article>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="materials-block">
+        <div class="materials-block-head">
+          <h3>Personalizados</h3>
+        </div>
+        <div class="ingredient-grid custom-ingredient-grid" id="custom-materials-grid">
+          <article class="empty-state-card" id="custom-materials-empty">
+            <p>Aún no has añadido materiales propios.</p>
+            <a class="secondary-link" href="/materials-library">Crear material</a>
+          </article>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+{% if result %}
+<section class="results-section" id="results-section">
+  <div class="section-heading">
+    <p class="eyebrow">Resultados</p>
+    <h2>Salida principal</h2>
+  </div>
+
+  <div class="results-grid">
+    {% set summary = namespace(layer_count=0, core_thickness=0.0) %}
+    {% for layer in result.generated_layers %}
+    {% if layer.material_id != "Dummy" %}
+    {% set summary.layer_count = summary.layer_count + 1 %}
+    {% endif %}
+    {% endfor %}
+    {% for material in core_materials %}
+    {% if material.id == form_state.core_material_id %}
+    {% set summary.core_thickness = material.thickness_mm %}
+    {% endif %}
+    {% endfor %}
+    {% for material in form_state.custom_materials %}
+    {% if material.id == form_state.core_material_id and material.material_category == "core" %}
+    {% set summary.core_thickness = material.thickness_mm %}
+    {% endif %}
+    {% endfor %}
+    {% set total_laminate_thickness_mm = (result.trace.espesor_total_mm * (2 if form_state.is_symmetric else 1)) + summary.core_thickness %}
+
+    <article class="app-card result-card result-card-primary objective-card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Objetivo</p>
+          <h2>Bloque objetivo</h2>
+        </div>
+      </div>
+      <div class="objective-grid">
+        <div class="objective-item objective-item-strong">
+          <span>Elastic gradient theory</span>
+          <strong>{{ result.three_point_bending.elastic_gradient_theory | fmt3 }}</strong>
+        </div>
+        <div class="objective-item">
+          <span>Espesor de fibra</span>
+          <strong>{{ result.trace.espesor_total_mm | fmt3 }} mm</strong>
+        </div>
+        <div class="objective-item">
+          <span>Espesor total</span>
+          <strong>{{ total_laminate_thickness_mm | fmt3 }} mm</strong>
+        </div>
+        <div class="objective-item">
+          <span>Core seleccionado</span>
+          <strong>{{ form_state.core_material_id }}</strong>
+        </div>
+      </div>
+    </article>
+
+    <article class="app-card result-card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Visual</p>
+          <h2>Representación del laminado</h2>
+        </div>
+      </div>
+      <div class="laminate-visual-wrap">
+        <div class="laminate-visual-column">
+          <div class="laminate-face-label">Cara superior</div>
+          <div class="laminate-visual-frame">
+            <div class="laminate-visual">
+              {% for layer in result.generated_layers %}
+              {% if layer.material_id != "Dummy" %}
+              <div
+                class="laminate-segment"
+                title="{{ layer.material_name }} · {{ layer.theta_deg | fmt3 }} deg · {{ layer.thickness_mm | fmt3 }} mm"
+                style="--segment-share: {{ layer.thickness_mm }}; background: {{ material_palette[layer.material_id] }};"
+              ></div>
+              {% endif %}
+              {% endfor %}
+              {% if summary.core_thickness > 0 %}
+              <div
+                class="laminate-segment laminate-core-segment"
+                title="{{ form_state.core_material_id }} · {{ summary.core_thickness | fmt3 }} mm"
+                style="--segment-share: {{ summary.core_thickness }};"
+              ></div>
+              {% endif %}
+              {% if form_state.is_symmetric %}
+              {% for layer in result.generated_layers | reverse %}
+              {% if layer.material_id != "Dummy" %}
+              <div
+                class="laminate-segment"
+                title="{{ layer.material_name }} · {{ layer.theta_deg | fmt3 }} deg · {{ layer.thickness_mm | fmt3 }} mm"
+                style="--segment-share: {{ layer.thickness_mm }}; background: {{ material_palette[layer.material_id] }};"
+              ></div>
+              {% endif %}
+              {% endfor %}
+              {% endif %}
+            </div>
+          </div>
+          <div class="laminate-face-label">Cara inferior</div>
+        </div>
+        <div class="laminate-legend">
+          {% for material_id, color in material_palette.items() %}
+          <div class="laminate-legend-item">
+            <span class="laminate-legend-swatch" style="background: {{ color }};"></span>
+            <div>
+              <strong>{{ material_id }}</strong>
+            </div>
+          </div>
+          {% endfor %}
+          {% if summary.core_thickness > 0 %}
+          <div class="laminate-legend-item">
+            <span class="laminate-legend-swatch laminate-core-swatch"></span>
+            <div>
+              <strong>{{ form_state.core_material_id }}</strong>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </article>
+
+    <article class="app-card result-card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Propiedades equivalentes</p>
+          <h2>Propiedades del laminado</h2>
+        </div>
+      </div>
+      <div class="metric-grid metric-grid-large">
+        <div><span>E11</span><strong>{{ result.equivalent_properties.e11_gpa | fmt3 }} GPa</strong></div>
+        <div><span>E22</span><strong>{{ result.equivalent_properties.e22_gpa | fmt3 }} GPa</strong></div>
+        <div><span>G12</span><strong>{{ result.equivalent_properties.g122_gpa | fmt3 }} GPa</strong></div>
+        <div><span>G12G</span><strong>{{ result.equivalent_properties.g12g_gpa | fmt3 }} GPa</strong></div>
+        <div><span>nu12</span><strong>{{ result.equivalent_properties.nu12 | fmt3 }}</strong></div>
+        <div><span>nu21</span><strong>{{ result.equivalent_properties.nu21 | fmt3 }}</strong></div>
+      </div>
+    </article>
+
+    <article class="app-card result-card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Secuencia</p>
+          <h2>Apilado final</h2>
+        </div>
+      </div>
+      <div class="stack-table-wrap">
+        <table class="stack-table">
+          <thead>
+            <tr>
+              <th>Capa</th>
+              <th>Material</th>
+              <th>Orientación</th>
+              <th>Espesor</th>
+              <th>Origen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set ns = namespace(display_index=0) %}
+            {% for layer in result.generated_layers %}
+            {% if layer.material_id != "Dummy" %}
+            {% set ns.display_index = ns.display_index + 1 %}
+            <tr>
+              <td data-label="Capa">{{ ns.display_index }}</td>
+              <td data-label="Material">{{ layer.material_name }}</td>
+              <td data-label="Orientación">{{ layer.theta_deg | fmt3 }} deg</td>
+              <td data-label="Espesor">{{ layer.thickness_mm | fmt3 }} mm</td>
+              <td data-label="Origen">{% if layer.source == "user" %}Usuario{% else %}Interno{% endif %}</td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="app-card result-card">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Flexión a tres puntos</p>
+          <h2>Bloque experimental</h2>
+        </div>
+      </div>
+      <div class="metric-grid">
+        <div><span>Espesor de fibra</span><strong>{{ result.trace.espesor_total_mm | fmt3 }} mm</strong></div>
+        <div><span>Espesor total</span><strong>{{ total_laminate_thickness_mm | fmt3 }} mm</strong></div>
+        <div><span>Elastic gradient theory</span><strong>{{ result.three_point_bending.elastic_gradient_theory | fmt3 }}</strong></div>
+      </div>
+    </article>
+
+    <article class="app-card result-card result-card-collapsible">
+      <details class="details-panel">
+        <summary>Ver detalles técnicos</summary>
+        <div class="details-body">
+          {% if result.warnings %}
+          <div class="details-block">
+            <h3>Avisos</h3>
+            <ul class="message-list">
+              {% for warning in result.warnings %}
+              <li>{{ warning }}</li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+
+          <div class="details-block">
+            <h3>Variables avanzadas del ensayo</h3>
+            <div class="metric-grid metric-grid-compact">
+              <div><span>EI teoria</span><strong>{{ result.three_point_bending.ei_theory | fmt3 }}</strong></div>
+              <div><span>EI ensayo</span><strong>{{ result.three_point_bending.ei_ensayo | fmt3 }}</strong></div>
+              <div><span>E fibra ensayo</span><strong>{{ result.three_point_bending.e_fibra_ensayo | fmt3 }}</strong></div>
+              <div><span>Valor central legado</span><strong>{{ result.three_point_bending.legacy_capa_central_value | fmt3 }}</strong></div>
+            </div>
+          </div>
+
+          <div class="details-block">
+            <h3>Traza del cálculo</h3>
+            <p class="trace-inline"><strong>z (mm)</strong> {{ result.trace.z_mm | fmt_nested }}</p>
+            <pre>A = {{ result.trace.a_matrix | fmt_nested }}</pre>
+            <pre>B = {{ result.trace.b_matrix | fmt_nested }}</pre>
+            <pre>D = {{ result.trace.d_matrix | fmt_nested }}</pre>
+          </div>
+        </div>
+      </details>
+    </article>
+  </div>
+</section>
+<script id="result-summary-data" type="application/json">
+  {
+    "elastic_gradient_theory": {{ result.three_point_bending.elastic_gradient_theory | tojson }},
+    "ei_theory": {{ result.three_point_bending.ei_theory | tojson }},
+    "fiber_thickness_mm": {{ result.trace.espesor_total_mm | tojson }},
+    "total_thickness_mm": {{ total_laminate_thickness_mm | tojson }},
+    "core_material_id": {{ form_state.core_material_id | tojson }},
+    "is_symmetric": {{ form_state.is_symmetric | tojson }},
+    "visible_layers": {{ summary.layer_count | tojson }}
+  }
+</script>
+<script id="result-full-data" type="application/json">{{ result.model_dump() | tojson }}</script>
+{% endif %}
+
+<script id="base-materials-data" type="application/json">{{ base_materials_data | tojson }}</script>
+<script id="all-materials-data" type="application/json">{{ all_materials_data | tojson }}</script>
+<div id="restored-results-container"></div>
+
+<template id="layer-template">
+  <div class="layer-row">
+    <div class="layer-index">Capa</div>
+    <label>
+      <span>Material</span>
+      <select name="material_id"></select>
+    </label>
+    <label>
+      <span>Orientación (deg)</span>
+      <select name="theta_deg" data-selected="45"></select>
+    </label>
+    <button type="button" class="ghost-button remove-layer">Quitar</button>
+  </div>
+</template>
+
+<script>
+  const STORAGE_KEY = "laminate_tool_custom_materials_v1";
+  const SCROLL_KEY = "laminate_tool_scroll_position";
+  const LAST_ANALYSIS_KEY = "laminate_tool_last_analysis_v1";
+  const HISTORY_KEY = "laminate_tool_history_v1";
+  const HISTORY_LIMIT = 200;
+  const baseMaterials = JSON.parse(document.getElementById("base-materials-data").textContent);
+  const allBaseMaterials = JSON.parse(document.getElementById("all-materials-data").textContent);
+  const layers = document.getElementById("layers");
+  const layerTemplate = document.getElementById("layer-template");
+  const addLayerButton = document.getElementById("add-layer");
+  const toggleAdvancedButton = document.getElementById("toggle-advanced");
+  const advancedPanel = document.getElementById("advanced-panel");
+  const coreSelect = document.getElementById("core-material-select");
+  const customMaterialsField = document.getElementById("custom-materials-json");
+  const customMaterialsGrid = document.getElementById("custom-materials-grid");
+  const customMaterialsEmpty = document.getElementById("custom-materials-empty");
+  const laminateForm = document.getElementById("laminate-form");
+  const restoredResultsContainer = document.getElementById("restored-results-container");
+  const currentResultsSection = document.getElementById("results-section");
+  const currentResultSummaryNode = document.getElementById("result-summary-data");
+  const currentFullResultNode = document.getElementById("result-full-data");
+  const ORIENTATION_OPTIONS = {
+    twill: [
+      { value: "45", label: "+-45" },
+      { value: "90", label: "+-90" },
+    ],
+    ud: [{ value: "0", label: "0" }],
+    fallback: [{ value: "0", label: "0" }],
+  };
+
+  const restoreScrollPosition = () => {
+    const savedPosition = sessionStorage.getItem(SCROLL_KEY);
+    if (!savedPosition) {
+      return;
+    }
+    const top = Number(savedPosition);
+    sessionStorage.removeItem(SCROLL_KEY);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top, behavior: "auto" });
+      });
+    });
+  };
+
+  const loadCustomMaterials = () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw
+        ? JSON.parse(raw).map((material) => ({
+            material_category: "fiber",
+            ...material,
+          }))
+        : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const parseHiddenCustomMaterials = () => {
+    try {
+      return JSON.parse(customMaterialsField.value || "[]");
+    } catch {
+      return [];
+    }
+  };
+
+  const withFiberFamilyDefaults = (materials) =>
+    materials.map((material) => ({
+      ...material,
+      fiber_family:
+        material.fiber_family ?? (material.material_category === "fiber" ? "twill" : null),
+    }));
+  const mergeCustomMaterials = (...materialGroups) => {
+    const materialsById = new Map();
+    materialGroups
+      .flat()
+      .filter((material) => material && material.id)
+      .forEach((material) => {
+        if (!materialsById.has(material.id)) {
+          materialsById.set(material.id, material);
+        }
+      });
+    return withFiberFamilyDefaults([...materialsById.values()]);
+  };
+  let customMaterials = mergeCustomMaterials(parseHiddenCustomMaterials(), loadCustomMaterials());
+  const buildPublicMaterials = () => [...baseMaterials, ...withFiberFamilyDefaults(customMaterials).filter((material) => material.user_selectable !== false)];
+  const buildFiberMaterials = () => buildPublicMaterials().filter((material) => material.material_category === "fiber");
+  const buildCoreMaterials = () => [...allBaseMaterials, ...withFiberFamilyDefaults(customMaterials)].filter((material) => material.material_category === "core");
+
+  const updateHiddenCustomMaterialsField = () => {
+    customMaterialsField.value = JSON.stringify(customMaterials);
+  };
+
+  const loadHistory = () => {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveHistory = (entries) => {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+  };
+
+  const renderSelectOptions = (select, materials, selectedValue) => {
+    const previousValue = selectedValue || select.value || select.dataset.selected || "";
+    select.innerHTML = materials
+      .map((material) => `<option value="${material.id}">${material.name}</option>`)
+      .join("");
+    if (previousValue && materials.some((material) => material.id === previousValue)) {
+      select.value = previousValue;
+    }
+  };
+
+  const getMaterialById = (materialId) =>
+    [...buildPublicMaterials(), ...buildCoreMaterials()].find((material) => material.id === materialId);
+
+  const renderThetaOptions = (row) => {
+    const materialSelect = row.querySelector('select[name="material_id"]');
+    const thetaSelect = row.querySelector('select[name="theta_deg"]');
+    const material = getMaterialById(materialSelect.value);
+    const family = material?.fiber_family || "fallback";
+    const options = ORIENTATION_OPTIONS[family] || ORIENTATION_OPTIONS.fallback;
+    const previousRaw = thetaSelect.dataset.selected || thetaSelect.value || options[0].value;
+    const previousValue = String(Number(previousRaw));
+    thetaSelect.innerHTML = options
+      .map((option) => `<option value="${option.value}">${option.label}</option>`)
+      .join("");
+    thetaSelect.value = options.some((option) => String(Number(option.value)) === previousValue)
+      ? options.find((option) => String(Number(option.value)) === previousValue).value
+      : options[0].value;
+    thetaSelect.dataset.selected = thetaSelect.value;
+  };
+
+  const refreshLayerLabels = () => {
+    layers.querySelectorAll(".layer-row").forEach((row, index) => {
+      const label = row.querySelector(".layer-index");
+      if (label) {
+        label.textContent = `Capa ${index + 1}`;
+      }
+    });
+  };
+
+  const syncMaterialControls = () => {
+    const availableMaterials = buildFiberMaterials();
+    layers.querySelectorAll('select[name="material_id"]').forEach((select) => {
+      renderSelectOptions(select, availableMaterials, select.dataset.selected);
+    });
+    layers.querySelectorAll(".layer-row").forEach((row) => {
+      renderThetaOptions(row);
+    });
+    renderSelectOptions(coreSelect, buildCoreMaterials(), coreSelect.dataset.selected);
+    refreshLayerLabels();
+    updateHiddenCustomMaterialsField();
+  };
+
+  const renderCustomMaterialsCatalog = () => {
+    customMaterialsGrid.querySelectorAll(".custom-material-card").forEach((node) => node.remove());
+    if (!customMaterials.length) {
+      customMaterialsEmpty.hidden = false;
+      return;
+    }
+    customMaterialsEmpty.hidden = true;
+
+    customMaterials.forEach((material) => {
+      const card = document.createElement("article");
+      card.className = "ingredient-card custom-material-card";
+      card.innerHTML = `
+        <div class="ingredient-head">
+          <h3>${material.name}</h3>
+          <span>${Number(material.thickness_mm).toFixed(3)} mm</span>
+        </div>
+        <dl>
+          <div><dt>ID</dt><dd>${material.id}</dd></div>
+          <div><dt>Tipo</dt><dd>${material.material_category === "core" ? "Core" : "Fibra"}</dd></div>
+          <div><dt>Familia</dt><dd>${material.material_category === "fiber" ? (material.fiber_family === "ud" ? "UD" : "Twill") : "-"}</dd></div>
+          <div><dt>E1</dt><dd>${(Number(material.e1_pa) / 1e9).toFixed(3)} GPa</dd></div>
+          <div><dt>E2</dt><dd>${(Number(material.e2_pa) / 1e9).toFixed(3)} GPa</dd></div>
+          <div><dt>G12</dt><dd>${(Number(material.g12_pa) / 1e9).toFixed(3)} GPa</dd></div>
+        </dl>
+      `;
+      customMaterialsGrid.appendChild(card);
+    });
+  };
+
+  const serializeFormState = () => ({
+    layers: Array.from(layers.querySelectorAll(".layer-row")).map((row) => ({
+      material_id: row.querySelector('select[name="material_id"]').value,
+      theta_deg: row.querySelector('select[name="theta_deg"]').value,
+    })),
+    is_symmetric: laminateForm.querySelector('input[name="is_symmetric"]').checked,
+    core_material_id: coreSelect.value,
+    insert_dummy_layer_for_odd_compatibility: laminateForm.querySelector('input[name="insert_dummy_layer_for_odd_compatibility"]').checked,
+    elastic_gradient: laminateForm.querySelector('input[name="elastic_gradient"]').value,
+    rigidez_rig: laminateForm.querySelector('input[name="rigidez_rig"]').value,
+    span_m: laminateForm.querySelector('input[name="span_m"]').value,
+    span_mm: laminateForm.querySelector('input[name="span_mm"]').value,
+    width_m: laminateForm.querySelector('input[name="width_m"]').value,
+    width_mm: laminateForm.querySelector('input[name="width_mm"]').value,
+    custom_materials: JSON.parse(customMaterialsField.value || "[]"),
+  });
+
+  const buildHistorySignature = (state) => JSON.stringify({
+    layers: state.layers,
+    is_symmetric: state.is_symmetric,
+    core_material_id: state.core_material_id,
+    insert_dummy_layer_for_odd_compatibility: state.insert_dummy_layer_for_odd_compatibility,
+  });
+
+  const applyFormState = (state) => {
+    if (!state || !state.layers?.length) {
+      return;
+    }
+    customMaterials = mergeCustomMaterials(state.custom_materials || [], loadCustomMaterials());
+    renderCustomMaterialsCatalog();
+    layers.innerHTML = "";
+    state.layers.forEach((layer) => {
+      const node = layerTemplate.content.cloneNode(true);
+      layers.appendChild(node);
+    });
+    syncMaterialControls();
+
+    layers.querySelectorAll(".layer-row").forEach((row, index) => {
+      const layer = state.layers[index];
+      if (!layer) {
+        return;
+      }
+      const materialSelect = row.querySelector('select[name="material_id"]');
+      const thetaSelect = row.querySelector('select[name="theta_deg"]');
+      materialSelect.value = layer.material_id;
+      thetaSelect.dataset.selected = String(Number(layer.theta_deg));
+      renderThetaOptions(row);
+    });
+
+    laminateForm.querySelector('input[name="is_symmetric"]').checked = Boolean(state.is_symmetric);
+    laminateForm.querySelector('input[name="insert_dummy_layer_for_odd_compatibility"]').checked = Boolean(state.insert_dummy_layer_for_odd_compatibility);
+    coreSelect.value = state.core_material_id || coreSelect.value;
+    laminateForm.querySelector('input[name="elastic_gradient"]').value = state.elastic_gradient ?? "";
+    laminateForm.querySelector('input[name="rigidez_rig"]').value = state.rigidez_rig ?? "";
+    laminateForm.querySelector('input[name="span_m"]').value = state.span_m ?? "";
+    laminateForm.querySelector('input[name="span_mm"]').value = state.span_mm ?? "";
+    laminateForm.querySelector('input[name="width_m"]').value = state.width_m ?? "";
+    laminateForm.querySelector('input[name="width_mm"]').value = state.width_mm ?? "";
+    updateHiddenCustomMaterialsField();
+    refreshLayerLabels();
+  };
+
+  const restoreResultsSnapshot = (resultsHtml) => {
+    if (!resultsHtml || currentResultsSection) {
+      return;
+    }
+    restoredResultsContainer.innerHTML = resultsHtml;
+  };
+
+  const persistCurrentAnalysis = () => {
+    if (!currentResultsSection || !currentResultSummaryNode) {
+      return;
+    }
+    const formState = serializeFormState();
+    const summary = JSON.parse(currentResultSummaryNode.textContent);
+    const resultData = currentFullResultNode ? JSON.parse(currentFullResultNode.textContent) : {};
+    const entry = {
+      signature: buildHistorySignature(formState),
+      saved_at: new Date().toISOString(),
+      form_state: formState,
+      summary,
+      results_html: currentResultsSection.outerHTML,
+      result_data: resultData,
+    };
+    localStorage.setItem(LAST_ANALYSIS_KEY, JSON.stringify(entry));
+
+    const history = loadHistory().filter((item) => item.signature !== entry.signature);
+    history.unshift(entry);
+    saveHistory(history.slice(0, HISTORY_LIMIT));
+  };
+
+  const restoreLastAnalysis = () => {
+    if (currentResultsSection) {
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(LAST_ANALYSIS_KEY);
+      if (!raw) {
+        return;
+      }
+      const entry = JSON.parse(raw);
+      applyFormState(entry.form_state);
+      restoreResultsSnapshot(entry.results_html);
+    } catch {
+      return;
+    }
+  };
+
+  addLayerButton.addEventListener("click", () => {
+    const node = layerTemplate.content.cloneNode(true);
+    layers.appendChild(node);
+    syncMaterialControls();
+  });
+
+  layers.addEventListener("click", (event) => {
+    if (event.target.classList.contains("remove-layer")) {
+      const rows = layers.querySelectorAll(".layer-row");
+      if (rows.length > 1) {
+        event.target.closest(".layer-row").remove();
+        syncMaterialControls();
+      }
+    }
+  });
+
+  layers.addEventListener("change", (event) => {
+    if (event.target.matches('select[name="material_id"]')) {
+      const row = event.target.closest(".layer-row");
+      renderThetaOptions(row);
+    }
+    if (event.target.matches('select[name="theta_deg"]')) {
+      event.target.dataset.selected = event.target.value;
+    }
+  });
+
+  toggleAdvancedButton.addEventListener("click", () => {
+    advancedPanel.classList.toggle("hidden");
+    toggleAdvancedButton.textContent = advancedPanel.classList.contains("hidden")
+      ? "Modo avanzado"
+      : "Ocultar avanzado";
+  });
+
+  laminateForm.addEventListener("submit", () => {
+    sessionStorage.setItem(SCROLL_KEY, String(window.scrollY));
+  });
+
+  restoreScrollPosition();
+  syncMaterialControls();
+  renderCustomMaterialsCatalog();
+  restoreLastAnalysis();
+  persistCurrentAnalysis();
+</script>
+{% endblock %}
