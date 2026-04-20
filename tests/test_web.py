@@ -19,9 +19,11 @@ def test_healthcheck_endpoint() -> None:
 def test_home_page_renders() -> None:
     response = client.get("/")
     assert response.status_code == 200
-    assert "Diseña tu laminado y valida el resultado con una interfaz clara." in response.text
+    assert "Calcula tu laminado en minutos." in response.text
     assert "Materiales disponibles" in response.text
     assert "Servicio público: los cálculos se ejecutan en el servidor" in response.text
+    assert "Laminado simétrico" not in response.text
+    assert "material-accordion" in response.text
     assert "Ingredientes disponibles" not in response.text
     assert "Todo el flujo principal queda a la vista" not in response.text
     assert "Uso guiado" not in response.text
@@ -65,7 +67,9 @@ def test_form_post_matches_matlab_g12g_when_legacy_dummy_is_enabled() -> None:
     )
     assert response.status_code == 200
     assert "33.076 GPa" in response.text
-    assert "Bloque experimental" in response.text
+    assert "Bloque experimental" not in response.text
+    assert "Propiedades del laminado" in response.text
+    assert "Apilado final" in response.text
 
 
 def test_materials_library_page_renders() -> None:
@@ -85,7 +89,7 @@ def test_tutorial_page_renders() -> None:
 def test_results_page_renders() -> None:
     response = client.get("/results")
     assert response.status_code == 200
-    assert "Consulta y recupera los cálculos guardados en este navegador." in response.text
+    assert "Recupera tus mejores configuraciones." in response.text
     assert "Historial de resultados" in response.text
     assert "hero-actions hero-actions-wide" in response.text
     assert "result-group-details" in response.text

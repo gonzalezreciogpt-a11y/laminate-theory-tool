@@ -3,10 +3,9 @@
 <section class="page-hero compact-hero compact-hero-single">
   <div class="hero-intro hero-intro-compact">
     <p class="eyebrow">Calculadora</p>
-    <h1>Diseña tu laminado y valida el resultado con una interfaz clara.</h1>
+    <h1>Calcula tu laminado en minutos.</h1>
     <p class="hero-copy">
-      Configura capas, orientaciones y core, revisa la secuencia final que usa el motor y consulta solo los resultados
-      que necesita el usuario final. Los detalles técnicos quedan accesibles bajo demanda.
+      Ajusta capas, materiales y core en una sola vista y obtén enseguida el resultado clave de tu configuración.
     </p>
     <div class="hero-actions">
       <a class="primary-link" href="#laminate-workspace">Empezar</a>
@@ -41,7 +40,7 @@
           <h2>Definición del laminado</h2>
         </div>
         <div class="card-head-actions">
-          <button type="button" class="secondary-button" id="add-layer">Añadir capa</button>
+          <button type="button" class="secondary-button" data-add-layer>Añadir capa</button>
           <button type="submit" class="primary-button" form="laminate-form">Calcular laminado</button>
           <button type="button" class="secondary-button" id="toggle-advanced">Modo avanzado</button>
         </div>
@@ -49,12 +48,9 @@
 
       <form method="post" class="stack-form" id="laminate-form">
         <input type="hidden" name="custom_materials_json" id="custom-materials-json" value='{{ form_state.custom_materials | default([], true) | tojson }}'>
+        <input type="hidden" name="is_symmetric" id="is-symmetric-field" value="{{ 'on' if form_state.is_symmetric else '' }}">
 
-        <div class="control-grid control-grid-top">
-          <label class="toggle-field">
-            <span class="toggle-title">Laminado simétrico</span>
-            <input type="checkbox" name="is_symmetric" {% if form_state.is_symmetric %}checked{% endif %}>
-          </label>
+        <div class="control-grid control-grid-top control-grid-core-only">
           <label class="core-field">
             <span>Core</span>
             <select name="core_material_id" id="core-material-select" data-selected="{{ form_state.core_material_id }}">
@@ -86,10 +82,15 @@
           {% endfor %}
         </div>
 
+        <div class="layer-actions-bottom">
+          <button type="button" class="secondary-button" data-add-layer>Añadir capa</button>
+          <button type="submit" class="primary-button">Calcular</button>
+        </div>
+
         <div id="advanced-panel" class="advanced-panel hidden">
           <div class="advanced-copy">
             <p class="card-kicker">Avanzado</p>
-            <h3>Compatibilidad y ensayo</h3>
+            <h3>Compatibilidad</h3>
           </div>
 
           <label class="toggle-field advanced-toggle">
@@ -124,7 +125,6 @@
             </label>
           </div>
         </div>
-
       </form>
     </section>
 
@@ -144,18 +144,20 @@
         <div class="ingredient-grid" id="base-materials-grid">
           {% for material in materials %}
           {% if material.fiber_family == "twill" %}
-          <article class="ingredient-card">
-            <div class="ingredient-head">
-              <h3>{{ material.name }}</h3>
+          <details class="ingredient-card material-accordion">
+            <summary class="material-accordion-summary">
+              <strong>{{ material.name }}</strong>
               <span>{{ material.thickness_mm | fmt3 }} mm</span>
+            </summary>
+            <div class="material-accordion-body">
+              <dl>
+                <div><dt>Familia</dt><dd>Twill</dd></div>
+                <div><dt>E1</dt><dd>{{ (material.e1_pa / 1e9) | fmt3 }} GPa</dd></div>
+                <div><dt>E2</dt><dd>{{ (material.e2_pa / 1e9) | fmt3 }} GPa</dd></div>
+                <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
+              </dl>
             </div>
-            <dl>
-              <div><dt>Familia</dt><dd>Twill</dd></div>
-              <div><dt>E1</dt><dd>{{ (material.e1_pa / 1e9) | fmt3 }} GPa</dd></div>
-              <div><dt>E2</dt><dd>{{ (material.e2_pa / 1e9) | fmt3 }} GPa</dd></div>
-              <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
-            </dl>
-          </article>
+          </details>
           {% endif %}
           {% endfor %}
         </div>
@@ -168,18 +170,20 @@
         <div class="ingredient-grid">
           {% for material in materials %}
           {% if material.fiber_family == "ud" %}
-          <article class="ingredient-card">
-            <div class="ingredient-head">
-              <h3>{{ material.name }}</h3>
+          <details class="ingredient-card material-accordion">
+            <summary class="material-accordion-summary">
+              <strong>{{ material.name }}</strong>
               <span>{{ material.thickness_mm | fmt3 }} mm</span>
+            </summary>
+            <div class="material-accordion-body">
+              <dl>
+                <div><dt>Familia</dt><dd>UD</dd></div>
+                <div><dt>E1</dt><dd>{{ (material.e1_pa / 1e9) | fmt3 }} GPa</dd></div>
+                <div><dt>E2</dt><dd>{{ (material.e2_pa / 1e9) | fmt3 }} GPa</dd></div>
+                <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
+              </dl>
             </div>
-            <dl>
-              <div><dt>Familia</dt><dd>UD</dd></div>
-              <div><dt>E1</dt><dd>{{ (material.e1_pa / 1e9) | fmt3 }} GPa</dd></div>
-              <div><dt>E2</dt><dd>{{ (material.e2_pa / 1e9) | fmt3 }} GPa</dd></div>
-              <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
-            </dl>
-          </article>
+          </details>
           {% endif %}
           {% endfor %}
         </div>
@@ -191,17 +195,19 @@
         </div>
         <div class="ingredient-grid">
           {% for material in core_materials %}
-          <article class="ingredient-card">
-            <div class="ingredient-head">
-              <h3>{{ material.name }}</h3>
+          <details class="ingredient-card material-accordion">
+            <summary class="material-accordion-summary">
+              <strong>{{ material.name }}</strong>
               <span>{{ material.thickness_mm | fmt3 }} mm</span>
+            </summary>
+            <div class="material-accordion-body">
+              <dl>
+                <div><dt>E1</dt><dd>{{ (material.e1_pa / 1e9) | fmt3 }} GPa</dd></div>
+                <div><dt>E2</dt><dd>{{ (material.e2_pa / 1e9) | fmt3 }} GPa</dd></div>
+                <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
+              </dl>
             </div>
-            <dl>
-              <div><dt>E1</dt><dd>{{ (material.e1_pa / 1e9) | fmt3 }} GPa</dd></div>
-              <div><dt>E2</dt><dd>{{ (material.e2_pa / 1e9) | fmt3 }} GPa</dd></div>
-              <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
-            </dl>
-          </article>
+          </details>
           {% endfor %}
         </div>
       </div>
@@ -225,7 +231,7 @@
 <section class="results-section" id="results-section">
   <div class="section-heading">
     <p class="eyebrow">Resultados</p>
-    <h2>Salida principal</h2>
+    <h2>Resumen del cálculo</h2>
   </div>
 
   <div class="results-grid">
@@ -338,72 +344,56 @@
       </div>
     </article>
 
-    <article class="app-card result-card">
-      <div class="card-head">
-        <div>
-          <p class="card-kicker">Propiedades equivalentes</p>
-          <h2>Propiedades del laminado</h2>
+    <article class="app-card result-card result-card-collapsible">
+      <details class="details-panel">
+        <summary>Propiedades del laminado</summary>
+        <div class="details-body">
+          <div class="metric-grid metric-grid-large">
+            <div><span>E11</span><strong>{{ result.equivalent_properties.e11_gpa | fmt3 }} GPa</strong></div>
+            <div><span>E22</span><strong>{{ result.equivalent_properties.e22_gpa | fmt3 }} GPa</strong></div>
+            <div><span>G12</span><strong>{{ result.equivalent_properties.g122_gpa | fmt3 }} GPa</strong></div>
+            <div><span>G12G</span><strong>{{ result.equivalent_properties.g12g_gpa | fmt3 }} GPa</strong></div>
+            <div><span>nu12</span><strong>{{ result.equivalent_properties.nu12 | fmt3 }}</strong></div>
+            <div><span>nu21</span><strong>{{ result.equivalent_properties.nu21 | fmt3 }}</strong></div>
+          </div>
         </div>
-      </div>
-      <div class="metric-grid metric-grid-large">
-        <div><span>E11</span><strong>{{ result.equivalent_properties.e11_gpa | fmt3 }} GPa</strong></div>
-        <div><span>E22</span><strong>{{ result.equivalent_properties.e22_gpa | fmt3 }} GPa</strong></div>
-        <div><span>G12</span><strong>{{ result.equivalent_properties.g122_gpa | fmt3 }} GPa</strong></div>
-        <div><span>G12G</span><strong>{{ result.equivalent_properties.g12g_gpa | fmt3 }} GPa</strong></div>
-        <div><span>nu12</span><strong>{{ result.equivalent_properties.nu12 | fmt3 }}</strong></div>
-        <div><span>nu21</span><strong>{{ result.equivalent_properties.nu21 | fmt3 }}</strong></div>
-      </div>
+      </details>
     </article>
 
-    <article class="app-card result-card">
-      <div class="card-head">
-        <div>
-          <p class="card-kicker">Secuencia</p>
-          <h2>Apilado final</h2>
+    <article class="app-card result-card result-card-collapsible">
+      <details class="details-panel">
+        <summary>Apilado final</summary>
+        <div class="details-body">
+          <div class="stack-table-wrap">
+            <table class="stack-table">
+              <thead>
+                <tr>
+                  <th>Capa</th>
+                  <th>Material</th>
+                  <th>Orientación</th>
+                  <th>Espesor</th>
+                  <th>Origen</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% set ns = namespace(display_index=0) %}
+                {% for layer in result.generated_layers %}
+                {% if layer.material_id != "Dummy" %}
+                {% set ns.display_index = ns.display_index + 1 %}
+                <tr>
+                  <td data-label="Capa">{{ ns.display_index }}</td>
+                  <td data-label="Material">{{ layer.material_name }}</td>
+                  <td data-label="Orientación">{{ layer.theta_deg | fmt3 }} deg</td>
+                  <td data-label="Espesor">{{ layer.thickness_mm | fmt3 }} mm</td>
+                  <td data-label="Origen">{% if layer.source == "user" %}Usuario{% else %}Interno{% endif %}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-      <div class="stack-table-wrap">
-        <table class="stack-table">
-          <thead>
-            <tr>
-              <th>Capa</th>
-              <th>Material</th>
-              <th>Orientación</th>
-              <th>Espesor</th>
-              <th>Origen</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% set ns = namespace(display_index=0) %}
-            {% for layer in result.generated_layers %}
-            {% if layer.material_id != "Dummy" %}
-            {% set ns.display_index = ns.display_index + 1 %}
-            <tr>
-              <td data-label="Capa">{{ ns.display_index }}</td>
-              <td data-label="Material">{{ layer.material_name }}</td>
-              <td data-label="Orientación">{{ layer.theta_deg | fmt3 }} deg</td>
-              <td data-label="Espesor">{{ layer.thickness_mm | fmt3 }} mm</td>
-              <td data-label="Origen">{% if layer.source == "user" %}Usuario{% else %}Interno{% endif %}</td>
-            </tr>
-            {% endif %}
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </article>
-
-    <article class="app-card result-card">
-      <div class="card-head">
-        <div>
-          <p class="card-kicker">Flexión a tres puntos</p>
-          <h2>Bloque experimental</h2>
-        </div>
-      </div>
-      <div class="metric-grid">
-        <div><span>Espesor de fibra</span><strong>{{ result.trace.espesor_total_mm | fmt3 }} mm</strong></div>
-        <div><span>Espesor total</span><strong>{{ total_laminate_thickness_mm | fmt3 }} mm</strong></div>
-        <div><span>Elastic gradient theory</span><strong>{{ result.three_point_bending.elastic_gradient_theory | fmt3 }}</strong></div>
-      </div>
+      </details>
     </article>
 
     <article class="app-card result-card result-card-collapsible">
@@ -424,7 +414,7 @@
           <div class="details-block">
             <h3>Variables avanzadas del ensayo</h3>
             <div class="metric-grid metric-grid-compact">
-              <div><span>EI teoria</span><strong>{{ result.three_point_bending.ei_theory | fmt3 }}</strong></div>
+              <div><span>EI teoría</span><strong>{{ result.three_point_bending.ei_theory | fmt3 }}</strong></div>
               <div><span>EI ensayo</span><strong>{{ result.three_point_bending.ei_ensayo | fmt3 }}</strong></div>
               <div><span>E fibra ensayo</span><strong>{{ result.three_point_bending.e_fibra_ensayo | fmt3 }}</strong></div>
               <div><span>Valor central legado</span><strong>{{ result.three_point_bending.legacy_capa_central_value | fmt3 }}</strong></div>
@@ -486,10 +476,11 @@
   const allBaseMaterials = JSON.parse(document.getElementById("all-materials-data").textContent);
   const layers = document.getElementById("layers");
   const layerTemplate = document.getElementById("layer-template");
-  const addLayerButton = document.getElementById("add-layer");
+  const addLayerButtons = document.querySelectorAll("[data-add-layer]");
   const toggleAdvancedButton = document.getElementById("toggle-advanced");
   const advancedPanel = document.getElementById("advanced-panel");
   const coreSelect = document.getElementById("core-material-select");
+  const isSymmetricField = document.getElementById("is-symmetric-field");
   const customMaterialsField = document.getElementById("custom-materials-json");
   const customMaterialsGrid = document.getElementById("custom-materials-grid");
   const customMaterialsEmpty = document.getElementById("custom-materials-empty");
@@ -644,21 +635,23 @@
     customMaterialsEmpty.hidden = true;
 
     customMaterials.forEach((material) => {
-      const card = document.createElement("article");
-      card.className = "ingredient-card custom-material-card";
+      const card = document.createElement("details");
+      card.className = "ingredient-card custom-material-card material-accordion";
       card.innerHTML = `
-        <div class="ingredient-head">
-          <h3>${material.name}</h3>
+        <summary class="material-accordion-summary">
+          <strong>${material.name}</strong>
           <span>${Number(material.thickness_mm).toFixed(3)} mm</span>
+        </summary>
+        <div class="material-accordion-body">
+          <dl>
+            <div><dt>ID</dt><dd>${material.id}</dd></div>
+            <div><dt>Tipo</dt><dd>${material.material_category === "core" ? "Core" : "Fibra"}</dd></div>
+            <div><dt>Familia</dt><dd>${material.material_category === "fiber" ? (material.fiber_family === "ud" ? "UD" : "Twill") : "-"}</dd></div>
+            <div><dt>E1</dt><dd>${(Number(material.e1_pa) / 1e9).toFixed(3)} GPa</dd></div>
+            <div><dt>E2</dt><dd>${(Number(material.e2_pa) / 1e9).toFixed(3)} GPa</dd></div>
+            <div><dt>G12</dt><dd>${(Number(material.g12_pa) / 1e9).toFixed(3)} GPa</dd></div>
+          </dl>
         </div>
-        <dl>
-          <div><dt>ID</dt><dd>${material.id}</dd></div>
-          <div><dt>Tipo</dt><dd>${material.material_category === "core" ? "Core" : "Fibra"}</dd></div>
-          <div><dt>Familia</dt><dd>${material.material_category === "fiber" ? (material.fiber_family === "ud" ? "UD" : "Twill") : "-"}</dd></div>
-          <div><dt>E1</dt><dd>${(Number(material.e1_pa) / 1e9).toFixed(3)} GPa</dd></div>
-          <div><dt>E2</dt><dd>${(Number(material.e2_pa) / 1e9).toFixed(3)} GPa</dd></div>
-          <div><dt>G12</dt><dd>${(Number(material.g12_pa) / 1e9).toFixed(3)} GPa</dd></div>
-        </dl>
       `;
       customMaterialsGrid.appendChild(card);
     });
@@ -669,7 +662,7 @@
       material_id: row.querySelector('select[name="material_id"]').value,
       theta_deg: row.querySelector('select[name="theta_deg"]').value,
     })),
-    is_symmetric: laminateForm.querySelector('input[name="is_symmetric"]').checked,
+    is_symmetric: isSymmetricField.value === "on",
     core_material_id: coreSelect.value,
     insert_dummy_layer_for_odd_compatibility: laminateForm.querySelector('input[name="insert_dummy_layer_for_odd_compatibility"]').checked,
     elastic_gradient: laminateForm.querySelector('input[name="elastic_gradient"]').value,
@@ -695,7 +688,7 @@
     customMaterials = mergeCustomMaterials(state.custom_materials || [], loadCustomMaterials());
     renderCustomMaterialsCatalog();
     layers.innerHTML = "";
-    state.layers.forEach((layer) => {
+    state.layers.forEach(() => {
       const node = layerTemplate.content.cloneNode(true);
       layers.appendChild(node);
     });
@@ -713,7 +706,7 @@
       renderThetaOptions(row);
     });
 
-    laminateForm.querySelector('input[name="is_symmetric"]').checked = Boolean(state.is_symmetric);
+    isSymmetricField.value = state.is_symmetric ? "on" : "";
     laminateForm.querySelector('input[name="insert_dummy_layer_for_odd_compatibility"]').checked = Boolean(state.insert_dummy_layer_for_odd_compatibility);
     coreSelect.value = state.core_material_id || coreSelect.value;
     laminateForm.querySelector('input[name="elastic_gradient"]').value = state.elastic_gradient ?? "";
@@ -772,10 +765,12 @@
     }
   };
 
-  addLayerButton.addEventListener("click", () => {
-    const node = layerTemplate.content.cloneNode(true);
-    layers.appendChild(node);
-    syncMaterialControls();
+  addLayerButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const node = layerTemplate.content.cloneNode(true);
+      layers.appendChild(node);
+      syncMaterialControls();
+    });
   });
 
   layers.addEventListener("click", (event) => {

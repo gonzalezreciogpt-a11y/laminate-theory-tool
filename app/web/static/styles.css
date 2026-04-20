@@ -472,6 +472,14 @@ label,
   gap: 0.72rem;
 }
 
+.layer-actions-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.85rem;
+  padding-top: 0.25rem;
+}
+
 .layer-row {
   display: grid;
   grid-template-columns: auto 1.15fr 0.9fr auto;
@@ -536,6 +544,10 @@ select:focus {
 .control-grid-top {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: stretch;
+}
+
+.control-grid-core-only {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .control-grid-top > .toggle-field,
@@ -661,6 +673,54 @@ select:focus {
   padding: 0.95rem;
   background: var(--surface-soft);
   border: 1px solid var(--border);
+}
+
+.material-accordion {
+  padding: 0;
+  overflow: hidden;
+}
+
+.material-accordion summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.95rem;
+  cursor: pointer;
+}
+
+.material-accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+.material-accordion summary::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--accent-strong);
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.material-accordion[open] summary::after {
+  content: "−";
+}
+
+.material-accordion-summary strong {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.material-accordion-summary span {
+  color: var(--accent-strong);
+  font-family: var(--font-heading);
+  font-weight: 800;
+}
+
+.material-accordion-body {
+  padding: 0 0.95rem 0.95rem;
 }
 
 .ingredient-head {
@@ -1377,7 +1437,10 @@ pre {
 
 @media (max-width: 960px) {
   .top-nav {
-    gap: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.65rem;
+    width: 100%;
   }
 
   .hero-actions,
@@ -1407,8 +1470,14 @@ pre {
   }
 
   .top-nav {
-    justify-content: space-between;
-    flex-wrap: wrap;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .top-nav-link {
+    width: 100%;
+    min-height: 40px;
+    padding: 0.7rem 0.4rem;
+    font-size: 0.84rem;
   }
 
   .hero-intro,
@@ -1428,7 +1497,8 @@ pre {
 
   .hero-actions-wide,
   .card-head-actions,
-  .shuffle-table-actions {
+  .shuffle-table-actions,
+  .layer-actions-bottom {
     flex-direction: column;
     align-items: stretch;
   }
