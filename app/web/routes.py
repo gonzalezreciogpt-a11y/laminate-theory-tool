@@ -9,13 +9,13 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 
 from app.config import settings
-from app.domain.materials import build_material_catalog
 from app.domain.materials import list_materials, material_to_dict
 from app.schemas.batch import BatchCalculateRequestModel
 from app.schemas.inputs import LaminateRequestModel
 from app.schemas.results_export import ExportHistoryEntryModel, ExportResultsRequestModel, ExportSummaryModel
 from app.services.legacy_compatibility import analyze_laminate
 from app.services.results_export import build_export_filename, build_results_export_workbook
+from app.services.sandwich_trace import build_visible_sandwich_layers, compute_visible_sandwich_trace
 from app.web.forms import build_request_from_form
 
 
@@ -99,19 +99,15 @@ def _build_export_summary(
     request_model: LaminateRequestModel,
     result_model,
 ) -> ExportSummaryModel:
-    material_catalog = build_material_catalog(
-        [material.model_dump() for material in request_model.custom_materials]
-    )
-    core_material = material_catalog[request_model.core_material_id]
+    sandwich_trace = compute_visible_sandwich_trace(request_model)
     visible_layers = len(
         [layer for layer in result_model.generated_layers if layer.material_id != "Dummy"]
     )
-    total_thickness_mm = result_model.trace.espesor_total_mm + core_material.thickness_mm
     return ExportSummaryModel(
         elastic_gradient_theory=result_model.three_point_bending.elastic_gradient_theory,
         ei_theory=result_model.three_point_bending.ei_theory,
         fiber_thickness_mm=result_model.trace.espesor_total_mm,
-        total_thickness_mm=total_thickness_mm,
+        total_thickness_mm=sandwich_trace.total_thickness_mm,
         core_material_id=request_model.core_material_id,
         is_symmetric=request_model.is_symmetric,
         visible_layers=visible_layers,
@@ -146,6 +142,8 @@ async def index(request: Request) -> HTMLResponse:
             "all_materials_data": all_materials,
             "form_state": build_default_form_state(),
             "result": None,
+            "display_layers": [],
+            "sandwich_trace": None,
             "material_palette": {},
             "errors": [],
         },
@@ -157,6 +155,8 @@ async def calculate(request: Request) -> HTMLResponse:
     form = await request.form()
     errors: list[str] = []
     result = None
+    display_layers = []
+    sandwich_trace = None
     form_state = build_default_form_state()
     base_materials = [material_to_dict(material) for material in list_materials(public_only=True)]
     all_materials = [material_to_dict(material) for material in list_materials(public_only=False)]
@@ -177,6 +177,8 @@ async def calculate(request: Request) -> HTMLResponse:
             "custom_materials": [material.model_dump() for material in payload.custom_materials],
         }
         result = analyze_laminate(payload)
+        display_layers = build_visible_sandwich_layers(payload)
+        sandwich_trace = compute_visible_sandwich_trace(payload)
     except (ValidationError, ValueError) as exc:
         errors = [str(exc)]
 
@@ -190,6 +192,8 @@ async def calculate(request: Request) -> HTMLResponse:
             "all_materials_data": all_materials,
             "form_state": form_state,
             "result": result,
+            "display_layers": display_layers,
+            "sandwich_trace": sandwich_trace,
             "material_palette": build_material_palette(result.generated_layers if result else None),
             "errors": errors,
         },

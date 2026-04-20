@@ -75,6 +75,9 @@ def test_form_post_matches_matlab_g12g_when_legacy_dummy_is_enabled() -> None:
     assert "Bloque experimental" not in response.text
     assert "Propiedades del laminado" in response.text
     assert "Apilado final" in response.text
+    assert "22.320 mm" in response.text
+    assert "Traza CLT del sandwich visible" in response.text
+    assert "Traza legado MATLAB" in response.text
     assert response.text.count('class="laminate-segment') >= 7
 
 
@@ -244,7 +247,7 @@ def test_api_export_results_returns_dynamic_workbook() -> None:
     assert workbook.sheetnames == ["Portada", "Resumen", "3 capas", "Metadatos"]
     worksheet = workbook["3 capas"]
     assert worksheet["E30"].value == "Honeycomb"
-    assert worksheet["G30"].value == 21.16
+    assert worksheet["G30"].value == 22.32
     assert worksheet["H30"].value == 1.16
     assert worksheet["I30"].value == 3543.258
     assert workbook["Portada"]["A1"].value == "MAD Formula Team"
@@ -307,6 +310,6 @@ def test_api_export_results_recomputes_tampered_summary_from_form_state() -> Non
     workbook = load_workbook(BytesIO(response.content))
     worksheet = workbook["3 capas"]
     assert worksheet["E30"].value == "Honeycomb"
-    assert worksheet["G30"].value == 21.16
+    assert worksheet["G30"].value == 22.32
     assert worksheet["H30"].value == 1.16
     assert worksheet["I30"].value == 3543.258

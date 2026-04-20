@@ -254,7 +254,7 @@
     {% set summary.core_thickness = material.thickness_mm %}
     {% endif %}
     {% endfor %}
-    {% set total_laminate_thickness_mm = result.trace.espesor_total_mm + summary.core_thickness %}
+    {% set total_laminate_thickness_mm = sandwich_trace.total_thickness_mm if sandwich_trace else (result.trace.espesor_total_mm + summary.core_thickness) %}
 
     <article class="app-card result-card result-card-primary objective-card">
       <div class="card-head">
@@ -370,25 +370,21 @@
               <thead>
                 <tr>
                   <th>Capa</th>
+                  <th>Zona</th>
                   <th>Material</th>
                   <th>Orientación</th>
                   <th>Espesor</th>
-                  <th>Origen</th>
                 </tr>
               </thead>
               <tbody>
-                {% set ns = namespace(display_index=0) %}
-                {% for layer in result.generated_layers %}
-                {% if layer.material_id != "Dummy" %}
-                {% set ns.display_index = ns.display_index + 1 %}
+                {% for layer in display_layers %}
                 <tr>
-                  <td data-label="Capa">{{ ns.display_index }}</td>
+                  <td data-label="Capa">{{ loop.index }}</td>
+                  <td data-label="Zona">{{ layer.zone | capitalize }}</td>
                   <td data-label="Material">{{ layer.material_name }}</td>
-                  <td data-label="Orientación">{{ layer.theta_deg | fmt3 }} deg</td>
+                  <td data-label="Orientación">{% if layer.theta_deg is not none %}{{ layer.theta_deg | fmt3 }} deg{% else %}-{% endif %}</td>
                   <td data-label="Espesor">{{ layer.thickness_mm | fmt3 }} mm</td>
-                  <td data-label="Origen">{% if layer.source == "user" %}Usuario{% else %}Interno{% endif %}</td>
                 </tr>
-                {% endif %}
                 {% endfor %}
               </tbody>
             </table>
@@ -423,8 +419,16 @@
           </div>
 
           <div class="details-block">
-            <h3>Traza del cálculo</h3>
-            <p class="trace-inline"><strong>z (mm)</strong> {{ result.trace.z_mm | fmt_nested }}</p>
+            <h3>Traza CLT del sandwich visible</h3>
+            <p class="trace-inline"><strong>z interfaces (mm)</strong> {{ sandwich_trace.z_interfaces_mm | fmt_nested }}</p>
+            <pre>A = {{ sandwich_trace.a_matrix | fmt_nested }}</pre>
+            <pre>B = {{ sandwich_trace.b_matrix | fmt_nested }}</pre>
+            <pre>D = {{ sandwich_trace.d_matrix | fmt_nested }}</pre>
+          </div>
+
+          <div class="details-block">
+            <h3>Traza legado MATLAB</h3>
+            <p class="trace-inline"><strong>z legado (mm)</strong> {{ result.trace.z_mm | fmt_nested }}</p>
             <pre>A = {{ result.trace.a_matrix | fmt_nested }}</pre>
             <pre>B = {{ result.trace.b_matrix | fmt_nested }}</pre>
             <pre>D = {{ result.trace.d_matrix | fmt_nested }}</pre>
