@@ -311,6 +311,15 @@
                 style="--segment-share: {{ summary.core_thickness }};"
               ></div>
               {% endif %}
+              {% for layer in result.generated_layers | reverse %}
+              {% if layer.material_id != "Dummy" %}
+              <div
+                class="laminate-segment"
+                title="{{ layer.material_name }} · {{ layer.theta_deg | fmt3 }} deg · {{ layer.thickness_mm | fmt3 }} mm"
+                style="--segment-share: {{ layer.thickness_mm }}; background: {{ material_palette[layer.material_id] }};"
+              ></div>
+              {% endif %}
+              {% endfor %}
             </div>
           </div>
           <div class="laminate-face-label">Cara inferior</div>

@@ -75,6 +75,7 @@ def test_form_post_matches_matlab_g12g_when_legacy_dummy_is_enabled() -> None:
     assert "Bloque experimental" not in response.text
     assert "Propiedades del laminado" in response.text
     assert "Apilado final" in response.text
+    assert response.text.count('class="laminate-segment') >= 7
 
 
 def test_materials_library_page_renders() -> None:
