@@ -3,7 +3,7 @@
 <section class="page-hero compact-hero compact-hero-single">
   <div class="hero-intro hero-intro-compact">
     <p class="eyebrow">Calculadora</p>
-    <h1>Calcula tu laminado en minutos.</h1>
+    <h1>Calculadora de laminados.</h1>
     <p class="hero-copy">
       Ajusta capas, materiales y core en una sola vista y obtén enseguida el resultado clave de tu configuración.
     </p>
@@ -58,6 +58,10 @@
               <option value="{{ material.id }}" {% if material.id == form_state.core_material_id %}selected{% endif %}>{{ material.name }}</option>
               {% endfor %}
             </select>
+          </label>
+          <label class="core-field">
+            <span>Espesor del core (mm)</span>
+            <input type="number" step="any" min="0.001" name="core_thickness_mm_override" id="core-thickness-input" value="">
           </label>
         </div>
 
@@ -480,6 +484,7 @@
   const toggleAdvancedButton = document.getElementById("toggle-advanced");
   const advancedPanel = document.getElementById("advanced-panel");
   const coreSelect = document.getElementById("core-material-select");
+  const coreThicknessInput = document.getElementById("core-thickness-input");
   const isSymmetricField = document.getElementById("is-symmetric-field");
   const customMaterialsField = document.getElementById("custom-materials-json");
   const customMaterialsGrid = document.getElementById("custom-materials-grid");
@@ -546,19 +551,49 @@
       .flat()
       .filter((material) => material && material.id)
       .forEach((material) => {
-        if (!materialsById.has(material.id)) {
-          materialsById.set(material.id, material);
-        }
+        materialsById.set(material.id, material);
       });
     return withFiberFamilyDefaults([...materialsById.values()]);
   };
   let customMaterials = mergeCustomMaterials(parseHiddenCustomMaterials(), loadCustomMaterials());
-  const buildPublicMaterials = () => [...baseMaterials, ...withFiberFamilyDefaults(customMaterials).filter((material) => material.user_selectable !== false)];
+  const buildMergedCatalog = () => {
+    const materialsById = new Map();
+    [...allBaseMaterials, ...withFiberFamilyDefaults(customMaterials)].forEach((material) => {
+      materialsById.set(material.id, material);
+    });
+    return [...materialsById.values()];
+  };
+  const buildPublicMaterials = () => {
+    const materialsById = new Map();
+    [...baseMaterials, ...withFiberFamilyDefaults(customMaterials)]
+      .filter((material) => material.user_selectable !== false)
+      .forEach((material) => {
+        materialsById.set(material.id, material);
+      });
+    return [...materialsById.values()];
+  };
   const buildFiberMaterials = () => buildPublicMaterials().filter((material) => material.material_category === "fiber");
-  const buildCoreMaterials = () => [...allBaseMaterials, ...withFiberFamilyDefaults(customMaterials)].filter((material) => material.material_category === "core");
+  const buildCoreMaterials = () => {
+    const materialsById = new Map();
+    buildMergedCatalog()
+      .filter((material) => material.material_category === "core")
+      .forEach((material) => {
+        materialsById.set(material.id, material);
+      });
+    return [...materialsById.values()];
+  };
 
   const updateHiddenCustomMaterialsField = () => {
     customMaterialsField.value = JSON.stringify(customMaterials);
+  };
+
+  const syncCoreThicknessInput = () => {
+    const coreMaterial = getMaterialById(coreSelect.value);
+    if (!coreMaterial) {
+      coreThicknessInput.value = "";
+      return;
+    }
+    coreThicknessInput.value = Number(coreMaterial.thickness_mm).toFixed(3);
   };
 
   const loadHistory = () => {
@@ -585,7 +620,7 @@
   };
 
   const getMaterialById = (materialId) =>
-    [...buildPublicMaterials(), ...buildCoreMaterials()].find((material) => material.id === materialId);
+    buildMergedCatalog().find((material) => material.id === materialId);
 
   const renderThetaOptions = (row) => {
     const materialSelect = row.querySelector('select[name="material_id"]');
@@ -624,6 +659,7 @@
     renderSelectOptions(coreSelect, buildCoreMaterials(), coreSelect.dataset.selected);
     refreshLayerLabels();
     updateHiddenCustomMaterialsField();
+    syncCoreThicknessInput();
   };
 
   const renderCustomMaterialsCatalog = () => {
@@ -717,6 +753,7 @@
     laminateForm.querySelector('input[name="width_mm"]').value = state.width_mm ?? "";
     updateHiddenCustomMaterialsField();
     refreshLayerLabels();
+    syncCoreThicknessInput();
   };
 
   const restoreResultsSnapshot = (resultsHtml) => {
@@ -791,6 +828,11 @@
     if (event.target.matches('select[name="theta_deg"]')) {
       event.target.dataset.selected = event.target.value;
     }
+  });
+
+  coreSelect.addEventListener("change", () => {
+    coreSelect.dataset.selected = coreSelect.value;
+    syncCoreThicknessInput();
   });
 
   toggleAdvancedButton.addEventListener("click", () => {

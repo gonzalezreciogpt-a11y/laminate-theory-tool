@@ -19,10 +19,11 @@ def test_healthcheck_endpoint() -> None:
 def test_home_page_renders() -> None:
     response = client.get("/")
     assert response.status_code == 200
-    assert "Calcula tu laminado en minutos." in response.text
+    assert "Calculadora de laminados." in response.text
     assert "Materiales disponibles" in response.text
     assert "Servicio público: los cálculos se ejecutan en el servidor" in response.text
     assert "Laminado simétrico" not in response.text
+    assert "Espesor del core (mm)" in response.text
     assert "material-accordion" in response.text
     assert "Ingredientes disponibles" not in response.text
     assert "Todo el flujo principal queda a la vista" not in response.text
@@ -77,6 +78,7 @@ def test_materials_library_page_renders() -> None:
     assert response.status_code == 200
     assert "Gestiona tus materiales sin afectar al catálogo base de la app." in response.text
     assert "Catálogo del proyecto" in response.text
+    assert "MD Balsa Wood" in response.text
 
 
 def test_tutorial_page_renders() -> None:
@@ -89,7 +91,7 @@ def test_tutorial_page_renders() -> None:
 def test_results_page_renders() -> None:
     response = client.get("/results")
     assert response.status_code == 200
-    assert "Recupera tus mejores configuraciones." in response.text
+    assert "Exporta tus resultados." in response.text
     assert "Historial de resultados" in response.text
     assert "hero-actions hero-actions-wide" in response.text
     assert "result-group-details" in response.text

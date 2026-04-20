@@ -66,23 +66,23 @@
             <input type="number" step="any" id="material-poisson" required>
           </label>
           <label>
-            <span>Resistencia X</span>
+            <span>Resistencia X (opcional)</span>
             <input type="number" step="any" id="material-strength-x" value="0">
           </label>
           <label>
-            <span>Resistencia X compresión</span>
+            <span>Resistencia X compresión (opcional)</span>
             <input type="number" step="any" id="material-strength-xc" value="0">
           </label>
           <label>
-            <span>Resistencia Y</span>
+            <span>Resistencia Y (opcional)</span>
             <input type="number" step="any" id="material-strength-y" value="0">
           </label>
           <label>
-            <span>Resistencia Y compresión</span>
+            <span>Resistencia Y compresión (opcional)</span>
             <input type="number" step="any" id="material-strength-yc" value="0">
           </label>
           <label>
-            <span>Resistencia cortante</span>
+            <span>Resistencia cortante (opcional)</span>
             <input type="number" step="any" id="material-strength-s" value="0">
           </label>
           <label>
@@ -91,7 +91,7 @@
           </label>
         </div>
         <label>
-          <span>Notas</span>
+          <span>Notas (opcional)</span>
           <input type="text" id="material-notes" placeholder="Comentario opcional sobre el material">
         </label>
 
@@ -130,7 +130,7 @@
             <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
           </dl>
           <div class="library-actions">
-            <button type="button" class="ghost-button duplicate-base-material" data-material='{{ material | tojson }}'>Duplicar</button>
+            <button type="button" class="ghost-button edit-base-material" data-material='{{ material | tojson }}'>Modificar</button>
           </div>
         </article>
         {% endfor %}
@@ -157,7 +157,7 @@
             <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
           </dl>
           <div class="library-actions">
-            <button type="button" class="ghost-button duplicate-base-material" data-material='{{ material | tojson }}'>Duplicar</button>
+            <button type="button" class="ghost-button edit-base-material" data-material='{{ material | tojson }}'>Modificar</button>
           </div>
         </article>
         {% endfor %}
@@ -184,7 +184,7 @@
             <div><dt>G12</dt><dd>{{ (material.g12_pa / 1e9) | fmt3 }} GPa</dd></div>
           </dl>
           <div class="library-actions">
-            <button type="button" class="ghost-button duplicate-base-material" data-material='{{ material | tojson }}'>Duplicar</button>
+            <button type="button" class="ghost-button edit-base-material" data-material='{{ material | tojson }}'>Modificar</button>
           </div>
         </article>
         {% endfor %}
@@ -248,9 +248,9 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       return raw
         ? JSON.parse(raw).map((material) => ({
-            material_category: "fiber",
-            fiber_family: material.fiber_family ?? ((material.material_category || "fiber") === "fiber" ? "twill" : null),
             ...material,
+            material_category: material.material_category || "fiber",
+            fiber_family: material.fiber_family ?? ((material.material_category || "fiber") === "fiber" ? "twill" : null),
           }))
         : [];
     } catch {
@@ -262,7 +262,7 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(materials));
   };
 
-  const reservedIds = new Set(["RC416T", "UD", "Honeycomb", "Dummy"]);
+  const reservedIds = new Set(["Dummy"]);
   let customMaterials = loadMaterials();
   let editingMaterialId = null;
 
@@ -409,14 +409,12 @@
     }
   });
 
-  document.querySelectorAll(".duplicate-base-material").forEach((button) => {
+  document.querySelectorAll(".edit-base-material").forEach((button) => {
     button.addEventListener("click", () => {
       const material = JSON.parse(button.dataset.material);
       fillForm({
         ...material,
-        id: `${material.id}_CUSTOM`,
-        name: `${material.name} Custom`,
-        notes: `Duplicado desde material base ${material.name}.`,
+        notes: material.notes || `Ajuste local de ${material.name}.`,
       });
     });
   });

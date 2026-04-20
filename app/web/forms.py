@@ -4,6 +4,7 @@ import json
 
 from starlette.datastructures import FormData
 
+from app.domain.materials import build_material_catalog
 from app.schemas.inputs import (
     CustomMaterialModel,
     LaminateRequestModel,
@@ -26,11 +27,43 @@ def build_request_from_form(form: FormData) -> LaminateRequestModel:
 
     custom_materials_json = str(form.get("custom_materials_json", "[]"))
     custom_materials_payload = json.loads(custom_materials_json)
+    core_material_id = str(form.get("core_material_id", "Honeycomb"))
+    core_thickness_override_raw = str(form.get("core_thickness_mm_override", "")).strip()
+
+    if core_thickness_override_raw:
+        core_catalog = build_material_catalog(custom_materials_payload)
+        if core_material_id in core_catalog:
+            core_material = core_catalog[core_material_id]
+            if core_material.material_category == "core":
+                override_payload = {
+                    "id": core_material.id,
+                    "name": core_material.name,
+                    "material_category": core_material.material_category,
+                    "fiber_family": core_material.fiber_family,
+                    "e1_pa": core_material.e1_pa,
+                    "e2_pa": core_material.e2_pa,
+                    "g12_pa": core_material.g12_pa,
+                    "poisson_input": core_material.poisson_input,
+                    "strength_x": core_material.strength_x,
+                    "strength_x_compression": core_material.strength_x_compression,
+                    "strength_y": core_material.strength_y,
+                    "strength_y_compression": core_material.strength_y_compression,
+                    "strength_s": core_material.strength_s,
+                    "thickness_mm": float(core_thickness_override_raw),
+                    "user_selectable": core_material.user_selectable,
+                    "notes": core_material.notes,
+                }
+                custom_materials_payload = [
+                    material
+                    for material in custom_materials_payload
+                    if str(material.get("id")) != core_material_id
+                ]
+                custom_materials_payload.append(override_payload)
 
     return LaminateRequestModel(
         layers=layers,
         is_symmetric=form.get("is_symmetric") == "on",
-        core_material_id=form.get("core_material_id", "Honeycomb"),
+        core_material_id=core_material_id,
         insert_dummy_layer_for_odd_compatibility=form.get(
             "insert_dummy_layer_for_odd_compatibility"
         )

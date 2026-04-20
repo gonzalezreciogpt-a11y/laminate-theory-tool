@@ -64,3 +64,27 @@ def test_rejects_invalid_twill_orientation() -> None:
     )
     with pytest.raises(ValueError, match="twill"):
         validate_request(payload)
+
+
+def test_allows_local_override_of_base_material_id() -> None:
+    payload = LaminateRequestModel(
+        layers=[{"material_id": "RC416T", "theta_deg": 45.0}],
+        is_symmetric=True,
+        core_material_id="Honeycomb",
+        custom_materials=[
+            {
+                "id": "Honeycomb",
+                "name": "Honeycomb",
+                "material_category": "core",
+                "e1_pa": 1000000.0,
+                "e2_pa": 1000000.0,
+                "g12_pa": 1000000.0,
+                "poisson_input": 0.5,
+                "thickness_mm": 18.0,
+                "user_selectable": True,
+                "notes": "Browser-local override.",
+            }
+        ],
+    )
+    warnings = validate_request(payload)
+    assert isinstance(warnings, list)

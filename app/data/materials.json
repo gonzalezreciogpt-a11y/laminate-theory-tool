@@ -54,6 +54,24 @@
     "notes": "Legacy core reference material."
   },
   {
+    "id": "BALSA",
+    "name": "MD Balsa Wood",
+    "material_category": "core",
+    "fiber_family": null,
+    "e1_pa": 3170000000.0,
+    "e2_pa": 3170000000.0,
+    "g12_pa": 1100000000.0,
+    "poisson_input": 0.4409,
+    "strength_x": 0.0,
+    "strength_x_compression": 0.0,
+    "strength_y": 0.0,
+    "strength_y_compression": 0.0,
+    "strength_s": 0.0,
+    "thickness_mm": 5.0,
+    "user_selectable": true,
+    "notes": "Balsa wood core reference material."
+  },
+  {
     "id": "Dummy",
     "name": "Dummy",
     "material_category": "compatibility",

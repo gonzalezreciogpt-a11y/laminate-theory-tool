@@ -24,10 +24,6 @@ def validate_request(request: LaminateRequestModel) -> list[str]:
     for material in request.custom_materials:
         if material.id in RESERVED_MATERIAL_IDS:
             raise ValueError(f"El identificador de material '{material.id}' esta reservado.")
-        if material.id in base_catalog:
-            raise ValueError(
-                f"El identificador personalizado '{material.id}' entra en conflicto con un material base."
-            )
         if material.id in custom_material_ids:
             raise ValueError(f"El identificador personalizado '{material.id}' esta duplicado.")
         if material.material_category not in {"fiber", "core", "compatibility"}:
