@@ -173,6 +173,13 @@
   const saveShuffleTop3 = document.getElementById("save-shuffle-top3");
   const runShuffleButton = document.getElementById("run-shuffle-button");
   const allBaseMaterials = JSON.parse(document.getElementById("all-materials-data").textContent);
+  const escapeHtml = (value) =>
+    String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
 
   let baseEntry = null;
   let latestShuffleEntries = [];
@@ -329,7 +336,7 @@
     const formState = baseEntry.form_state;
     shuffleBaseSummary.innerHTML = `
       <div><span>Capas visibles</span><strong>${formState.layers.length}</strong></div>
-      <div><span>Core</span><strong>${formState.core_material_id}</strong></div>
+      <div><span>Core</span><strong>${escapeHtml(formState.core_material_id)}</strong></div>
       <div><span>Simetría</span><strong>${formState.is_symmetric ? "Sí" : "No"}</strong></div>
       <div><span>Elastic gradient theory</span><strong>${formatNumber(baseEntry.summary.elastic_gradient_theory)}</strong></div>
     `;
@@ -339,17 +346,17 @@
     shuffleBaseLayers.innerHTML = "";
     baseEntry.form_state.layers.forEach((layer, index) => {
       const card = document.createElement("article");
-      card.className = "ingredient-card";
-      card.innerHTML = `
-        <div class="ingredient-head">
-          <h3>Capa ${index + 1}</h3>
-          <span>${Number(layer.theta_deg).toFixed(3)} deg</span>
-        </div>
-        <dl>
-          <div><dt>Material</dt><dd>${layer.material_id}</dd></div>
-          <div><dt>Orientación</dt><dd>${Number(layer.theta_deg).toFixed(3)} deg</dd></div>
-        </dl>
-      `;
+        card.className = "ingredient-card";
+        card.innerHTML = `
+          <div class="ingredient-head">
+            <h3>Capa ${index + 1}</h3>
+            <span>${Number(layer.theta_deg).toFixed(3)} deg</span>
+          </div>
+          <dl>
+            <div><dt>Material</dt><dd>${escapeHtml(layer.material_id)}</dd></div>
+            <div><dt>Orientación</dt><dd>${Number(layer.theta_deg).toFixed(3)} deg</dd></div>
+          </dl>
+        `;
       shuffleBaseLayers.appendChild(card);
     });
   };
@@ -369,13 +376,13 @@
     }
 
     shuffleLayerChecklist.innerHTML = selectableLayers
-      .map((layer, index) => `
-        <label class="history-compare-toggle">
-          <input type="checkbox" class="shuffle-layer-checkbox" value="${layer.index}" ${index === 0 ? "checked" : ""}>
-          <span>Capa ${layer.index + 1} - ${layer.layer.material_id} - ${Number(layer.layer.theta_deg).toFixed(0)} deg</span>
-        </label>
-      `)
-      .join("");
+        .map((layer, index) => `
+          <label class="history-compare-toggle">
+            <input type="checkbox" class="shuffle-layer-checkbox" value="${layer.index}" ${index === 0 ? "checked" : ""}>
+            <span>Capa ${layer.index + 1} - ${escapeHtml(layer.layer.material_id)} - ${Number(layer.layer.theta_deg).toFixed(0)} deg</span>
+          </label>
+        `)
+        .join("");
   };
 
   const applyShuffleControls = (controls) => {
@@ -433,13 +440,13 @@
   const renderCoreOptions = () => {
     const cores = buildCoreMaterials();
     shuffleCoreOptions.innerHTML = cores
-      .map((core, index) => `
-        <label class="history-compare-toggle">
-          <input type="checkbox" class="shuffle-core-checkbox" value="${core.id}" ${core.id === baseEntry.form_state.core_material_id || index === 0 ? "checked" : ""}>
-          <span>${core.name} - ${formatNumber(core.thickness_mm, " mm")}</span>
-        </label>
-      `)
-      .join("");
+        .map((core, index) => `
+          <label class="history-compare-toggle">
+            <input type="checkbox" class="shuffle-core-checkbox" value="${core.id}" ${core.id === baseEntry.form_state.core_material_id || index === 0 ? "checked" : ""}>
+            <span>${escapeHtml(core.name)} - ${formatNumber(core.thickness_mm, " mm")}</span>
+          </label>
+        `)
+        .join("");
   };
 
   const buildPalette = (layers) => {
@@ -493,12 +500,12 @@
 
     shuffleBestVisual.innerHTML = segments
       .map((segment) => `
-        <div
-          class="laminate-segment laminate-segment-annotated${segment.is_core ? " laminate-core-segment" : ""}"
-          title="${segment.is_core ? segment.material_id : `${segment.material_id} - ${segment.orientation_label}`} - ${Number(segment.thickness_mm).toFixed(3)} mm"
-          style="--segment-share: ${Number(segment.thickness_mm)}; background: ${segment.is_core ? "" : palette.get(segment.material_id)};"
-        >
-          ${segment.is_core ? "" : `<span class="laminate-segment-label ${buildSegmentLabelClass(segment)}">${segment.orientation_label.replace(" deg", "°")}</span>`}
+          <div
+            class="laminate-segment laminate-segment-annotated${segment.is_core ? " laminate-core-segment" : ""}"
+            title="${escapeHtml(segment.is_core ? segment.material_id : `${segment.material_id} - ${segment.orientation_label}`)} - ${Number(segment.thickness_mm).toFixed(3)} mm"
+            style="--segment-share: ${Number(segment.thickness_mm)}; background: ${segment.is_core ? "" : palette.get(segment.material_id)};"
+          >
+            ${segment.is_core ? "" : `<span class="laminate-segment-label ${buildSegmentLabelClass(segment)}">${segment.orientation_label.replace(" deg", "°")}</span>`}
         </div>
       `)
       .join("");
@@ -508,7 +515,7 @@
         <div class="laminate-legend-item">
           <span class="laminate-legend-swatch" style="background: ${color};"></span>
           <div>
-            <strong>${materialId}</strong>
+            <strong>${escapeHtml(materialId)}</strong>
           </div>
         </div>
       `)
@@ -521,7 +528,7 @@
         <div class="laminate-legend-item">
           <span class="laminate-legend-swatch laminate-core-swatch"></span>
           <div>
-            <strong>${entry.form_state.core_material_id}</strong>
+            <strong>${escapeHtml(entry.form_state.core_material_id)}</strong>
           </div>
         </div>
       `;
@@ -665,18 +672,18 @@
     const worst = entries[entries.length - 1];
     const bestThin = [...entries].sort((left, right) => Number(left.summary.total_thickness_mm) - Number(right.summary.total_thickness_mm))[0];
     shuffleHighlights.innerHTML = `
+        <article class="app-card compare-highlight-card">
+          <p class="card-kicker">Top 1</p>
+          <h2>Mejor objetivo</h2>
+          <strong>${formatNumber(best.summary.elastic_gradient_theory)}</strong>
+          <p>${escapeHtml(best.label)}</p>
+        </article>
       <article class="app-card compare-highlight-card">
-        <p class="card-kicker">Top 1</p>
-        <h2>Mejor objetivo</h2>
-        <strong>${formatNumber(best.summary.elastic_gradient_theory)}</strong>
-        <p>${best.label}</p>
-      </article>
-      <article class="app-card compare-highlight-card">
-        <p class="card-kicker">Compacidad</p>
-        <h2>Menor espesor total</h2>
-        <strong>${formatNumber(bestThin.summary.total_thickness_mm, " mm")}</strong>
-        <p>${bestThin.label}</p>
-      </article>
+          <p class="card-kicker">Compacidad</p>
+          <h2>Menor espesor total</h2>
+          <strong>${formatNumber(bestThin.summary.total_thickness_mm, " mm")}</strong>
+          <p>${escapeHtml(bestThin.label)}</p>
+        </article>
       <article class="app-card compare-highlight-card">
         <p class="card-kicker">Rango</p>
         <h2>Separación de resultados</h2>
@@ -702,13 +709,13 @@
       </thead>
       <tbody>
         ${entries.map((entry, index) => `
-          <tr>
-            <th>${entry.label}</th>
-            <td>${formatNumber(entry.summary.elastic_gradient_theory)}</td>
-            <td>${formatNumber(entry.summary.ei_theory)}</td>
-            <td>${formatNumber(entry.summary.total_thickness_mm, " mm")}</td>
-            <td>${entry.summary.core_material_id}</td>
-            <td>${entry.summary.visible_layers}</td>
+            <tr>
+              <th>${escapeHtml(entry.label)}</th>
+              <td>${formatNumber(entry.summary.elastic_gradient_theory)}</td>
+              <td>${formatNumber(entry.summary.ei_theory)}</td>
+              <td>${formatNumber(entry.summary.total_thickness_mm, " mm")}</td>
+              <td>${escapeHtml(entry.summary.core_material_id)}</td>
+              <td>${entry.summary.visible_layers}</td>
             <td><button type="button" class="secondary-button save-shuffle-entry" data-entry-index="${index}" ${savedSignatures.has(entry.signature) ? "disabled" : ""}>${savedSignatures.has(entry.signature) ? "Guardada" : "Guardar en Resultados"}</button></td>
           </tr>
         `).join("")}

@@ -9,10 +9,11 @@ from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 
 from app.config import settings
+from app.domain.materials import build_material_catalog
 from app.domain.materials import list_materials, material_to_dict
 from app.schemas.batch import BatchCalculateRequestModel
 from app.schemas.inputs import LaminateRequestModel
-from app.schemas.results_export import ExportResultsRequestModel
+from app.schemas.results_export import ExportHistoryEntryModel, ExportResultsRequestModel, ExportSummaryModel
 from app.services.legacy_compatibility import analyze_laminate
 from app.services.results_export import build_export_filename, build_results_export_workbook
 from app.web.forms import build_request_from_form
@@ -81,7 +82,7 @@ def build_default_form_state() -> dict[str, object]:
             {"material_id": "UD", "theta_deg": 0},
             {"material_id": "RC416T", "theta_deg": 90},
         ],
-        "is_symmetric": True,
+        "is_symmetric": False,
         "core_material_id": "Honeycomb",
         "insert_dummy_layer_for_odd_compatibility": True,
         "elastic_gradient": 2649.0,
@@ -92,6 +93,43 @@ def build_default_form_state() -> dict[str, object]:
         "width_mm": 275.0,
         "custom_materials": [],
     }
+
+
+def _build_export_summary(
+    request_model: LaminateRequestModel,
+    result_model,
+) -> ExportSummaryModel:
+    material_catalog = build_material_catalog(
+        [material.model_dump() for material in request_model.custom_materials]
+    )
+    core_material = material_catalog[request_model.core_material_id]
+    visible_layers = len(
+        [layer for layer in result_model.generated_layers if layer.material_id != "Dummy"]
+    )
+    total_thickness_mm = result_model.trace.espesor_total_mm + core_material.thickness_mm
+    return ExportSummaryModel(
+        elastic_gradient_theory=result_model.three_point_bending.elastic_gradient_theory,
+        ei_theory=result_model.three_point_bending.ei_theory,
+        fiber_thickness_mm=result_model.trace.espesor_total_mm,
+        total_thickness_mm=total_thickness_mm,
+        core_material_id=request_model.core_material_id,
+        is_symmetric=request_model.is_symmetric,
+        visible_layers=visible_layers,
+    )
+
+
+def _normalize_export_entry(entry: ExportHistoryEntryModel) -> ExportHistoryEntryModel:
+    request_model = LaminateRequestModel(**entry.form_state)
+    result_model = analyze_laminate(request_model)
+    normalized_form_state = request_model.model_dump()
+    return ExportHistoryEntryModel(
+        signature=entry.signature,
+        saved_at=entry.saved_at,
+        form_state=normalized_form_state,
+        summary=_build_export_summary(request_model, result_model),
+        results_html=entry.results_html,
+        result_data=result_model.model_dump(),
+    )
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -290,7 +328,8 @@ async def api_batch_calculate(payload: BatchCalculateRequestModel) -> JSONRespon
 
 @router.post("/api/export-results")
 async def api_export_results(payload: ExportResultsRequestModel) -> StreamingResponse:
-    workbook_bytes = build_results_export_workbook(payload.entries)
+    normalized_entries = [_normalize_export_entry(entry) for entry in payload.entries]
+    workbook_bytes = build_results_export_workbook(normalized_entries)
     filename = build_export_filename()
     return StreamingResponse(
         iter([workbook_bytes]),

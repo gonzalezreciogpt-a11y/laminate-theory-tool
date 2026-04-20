@@ -65,6 +65,13 @@
   const compareHighlights = document.getElementById("compare-highlights");
   const compareInsights = document.getElementById("compare-insights");
   const compareTable = document.getElementById("compare-table");
+  const escapeHtml = (value) =>
+    String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
 
   const loadHistory = () => {
     try {
@@ -109,19 +116,19 @@
         <p class="card-kicker">Objetivo</p>
         <h2>Mayor elastic gradient theory</h2>
         <strong>${formatNumber(bestElastic.summary.elastic_gradient_theory)}</strong>
-        <p>${buildLaminateText(bestElastic)} · ${buildMaterialText(bestElastic)}</p>
+        <p>${escapeHtml(buildLaminateText(bestElastic))} · ${escapeHtml(buildMaterialText(bestElastic))}</p>
       </article>
       <article class="app-card compare-highlight-card">
         <p class="card-kicker">Rigidez</p>
         <h2>Mayor EI theory</h2>
         <strong>${formatNumber(bestEI.summary.ei_theory)}</strong>
-        <p>${buildLaminateText(bestEI)} · ${buildMaterialText(bestEI)}</p>
+        <p>${escapeHtml(buildLaminateText(bestEI))} · ${escapeHtml(buildMaterialText(bestEI))}</p>
       </article>
       <article class="app-card compare-highlight-card">
         <p class="card-kicker">Compacidad</p>
         <h2>Menor espesor total</h2>
         <strong>${formatNumber(lightest.summary.total_thickness_mm, " mm")}</strong>
-        <p>${buildLaminateText(lightest)} · ${buildMaterialText(lightest)}</p>
+        <p>${escapeHtml(buildLaminateText(lightest))} · ${escapeHtml(buildMaterialText(lightest))}</p>
       </article>
     `;
   };
@@ -133,8 +140,8 @@
         <article class="compare-insight-item">
           <span class="compare-rank">#${index + 1}</span>
           <div>
-            <h3>${buildLaminateText(entry)}</h3>
-            <p>${buildMaterialText(entry)} · ${entry.summary.visible_layers} capas · Core ${entry.summary.core_material_id}</p>
+            <h3>${escapeHtml(buildLaminateText(entry))}</h3>
+            <p>${escapeHtml(buildMaterialText(entry))} · ${entry.summary.visible_layers} capas · Core ${escapeHtml(entry.summary.core_material_id)}</p>
           </div>
           <strong>${formatNumber(entry.summary.elastic_gradient_theory)}</strong>
         </article>
@@ -165,7 +172,7 @@
       <thead>
         <tr>
           <th>Métrica</th>
-          ${entries.map((entry, index) => `<th>Opción ${index + 1}<span>${buildLaminateText(entry)}</span></th>`).join("")}
+          ${entries.map((entry, index) => `<th>Opción ${index + 1}<span>${escapeHtml(buildLaminateText(entry))}</span></th>`).join("")}
         </tr>
       </thead>
     `;
@@ -176,8 +183,8 @@
           .map(
             (row) => `
               <tr>
-                <th>${row.label}</th>
-                ${entries.map((entry) => `<td>${row.getValue(entry)}</td>`).join("")}
+                <th>${escapeHtml(row.label)}</th>
+                ${entries.map((entry) => `<td>${escapeHtml(row.getValue(entry))}</td>`).join("")}
               </tr>
             `,
           )

@@ -241,6 +241,13 @@
     thickness_mm: document.getElementById("material-thickness"),
     notes: document.getElementById("material-notes"),
   };
+  const escapeHtml = (value) =>
+    String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
 
   const loadMaterials = () => {
     try {
@@ -312,21 +319,21 @@
       card.className = "ingredient-card custom-material-card";
       card.innerHTML = `
         <div class="ingredient-head">
-          <h3>${material.name}</h3>
+          <h3>${escapeHtml(material.name)}</h3>
           <span>${Number(material.thickness_mm).toFixed(3)} mm</span>
         </div>
         <dl>
-          <div><dt>ID</dt><dd>${material.id}</dd></div>
+          <div><dt>ID</dt><dd>${escapeHtml(material.id)}</dd></div>
           <div><dt>Tipo</dt><dd>${material.material_category === "core" ? "Core" : "Fibra"}</dd></div>
           <div><dt>Familia</dt><dd>${familyLabel}</dd></div>
           <div><dt>E1</dt><dd>${(Number(material.e1_pa) / 1e9).toFixed(3)} GPa</dd></div>
           <div><dt>E2</dt><dd>${(Number(material.e2_pa) / 1e9).toFixed(3)} GPa</dd></div>
           <div><dt>G12</dt><dd>${(Number(material.g12_pa) / 1e9).toFixed(3)} GPa</dd></div>
         </dl>
-        <p class="material-note">${material.notes || "Sin notas adicionales."}</p>
+        <p class="material-note">${escapeHtml(material.notes || "Sin notas adicionales.")}</p>
         <div class="library-actions">
-          <button type="button" class="ghost-button edit-custom-material" data-id="${material.id}">Editar</button>
-          <button type="button" class="ghost-button delete-custom-material" data-id="${material.id}">Borrar</button>
+          <button type="button" class="ghost-button edit-custom-material" data-id="${escapeHtml(material.id)}">Editar</button>
+          <button type="button" class="ghost-button delete-custom-material" data-id="${escapeHtml(material.id)}">Borrar</button>
         </div>
       `;
       libraryContainer.appendChild(card);

@@ -14,6 +14,9 @@ def test_healthcheck_endpoint() -> None:
     response = client.get("/healthz")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["x-frame-options"] == "DENY"
+    assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
 
 
 def test_home_page_renders() -> None:
@@ -23,6 +26,7 @@ def test_home_page_renders() -> None:
     assert "Materiales disponibles" in response.text
     assert "Servicio público: los cálculos se ejecutan en el servidor" in response.text
     assert "Laminado simétrico" not in response.text
+    assert 'name="is_symmetric"' not in response.text
     assert "Espesor del core (mm)" in response.text
     assert "material-accordion" in response.text
     assert "Ingredientes disponibles" not in response.text
@@ -208,6 +212,8 @@ def test_api_export_results_returns_dynamic_workbook() -> None:
                     ],
                     "is_symmetric": True,
                     "core_material_id": "Honeycomb",
+                    "insert_dummy_layer_for_odd_compatibility": True,
+                    "compatibility_mode": "legacy",
                     "custom_materials": [],
                 },
                 "summary": {
@@ -237,7 +243,7 @@ def test_api_export_results_returns_dynamic_workbook() -> None:
     assert workbook.sheetnames == ["Portada", "Resumen", "3 capas", "Metadatos"]
     worksheet = workbook["3 capas"]
     assert worksheet["E30"].value == "Honeycomb"
-    assert worksheet["G30"].value == 22.32
+    assert worksheet["G30"].value == 21.16
     assert worksheet["H30"].value == 1.16
     assert worksheet["I30"].value == 3543.258
     assert workbook["Portada"]["A1"].value == "MAD Formula Team"
@@ -252,3 +258,54 @@ def test_api_export_results_returns_dynamic_workbook() -> None:
         chart_payloads = [archive.read(name).decode("utf-8") for name in chart_files]
         assert any("<strRef>" in payload for payload in chart_payloads)
         assert any('<plotVisOnly val="0"' in payload for payload in chart_payloads[1:])
+
+
+def test_api_export_results_recomputes_tampered_summary_from_form_state() -> None:
+    payload = {
+        "entries": [
+            {
+                "signature": "tampered-signature",
+                "saved_at": "2026-04-18T12:00:00",
+                "form_state": {
+                    "layers": [
+                        {"material_id": "RC416T", "theta_deg": 45.0},
+                        {"material_id": "UD", "theta_deg": 0.0},
+                        {"material_id": "RC416T", "theta_deg": 90.0},
+                    ],
+                    "is_symmetric": False,
+                    "core_material_id": "Honeycomb",
+                    "insert_dummy_layer_for_odd_compatibility": True,
+                    "compatibility_mode": "legacy",
+                    "custom_materials": [],
+                    "three_point_bending": {
+                        "elastic_gradient": 2649.0,
+                        "rigidez_rig": 14871.0,
+                        "span_m": 0.4,
+                        "span_mm": 400.0,
+                        "width_m": 0.275,
+                        "width_mm": 275.0,
+                    },
+                },
+                "summary": {
+                    "elastic_gradient_theory": 1.0,
+                    "ei_theory": 2.0,
+                    "fiber_thickness_mm": 3.0,
+                    "total_thickness_mm": 4.0,
+                    "core_material_id": "BROKEN",
+                    "is_symmetric": True,
+                    "visible_layers": 99,
+                },
+                "result_data": {"equivalent_properties": {"e11_gpa": -1}},
+            }
+        ]
+    }
+
+    response = client.post("/api/export-results", json=payload)
+    assert response.status_code == 200
+
+    workbook = load_workbook(BytesIO(response.content))
+    worksheet = workbook["3 capas"]
+    assert worksheet["E30"].value == "Honeycomb"
+    assert worksheet["G30"].value == 21.16
+    assert worksheet["H30"].value == 1.16
+    assert worksheet["I30"].value == 3543.258

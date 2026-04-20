@@ -48,7 +48,6 @@
 
       <form method="post" class="stack-form" id="laminate-form">
         <input type="hidden" name="custom_materials_json" id="custom-materials-json" value='{{ form_state.custom_materials | default([], true) | tojson }}'>
-        <input type="hidden" name="is_symmetric" id="is-symmetric-field" value="{{ 'on' if form_state.is_symmetric else '' }}">
 
         <div class="control-grid control-grid-top control-grid-core-only">
           <label class="core-field">
@@ -255,7 +254,7 @@
     {% set summary.core_thickness = material.thickness_mm %}
     {% endif %}
     {% endfor %}
-    {% set total_laminate_thickness_mm = (result.trace.espesor_total_mm * (2 if form_state.is_symmetric else 1)) + summary.core_thickness %}
+    {% set total_laminate_thickness_mm = result.trace.espesor_total_mm + summary.core_thickness %}
 
     <article class="app-card result-card result-card-primary objective-card">
       <div class="card-head">
@@ -311,17 +310,6 @@
                 title="{{ form_state.core_material_id }} · {{ summary.core_thickness | fmt3 }} mm"
                 style="--segment-share: {{ summary.core_thickness }};"
               ></div>
-              {% endif %}
-              {% if form_state.is_symmetric %}
-              {% for layer in result.generated_layers | reverse %}
-              {% if layer.material_id != "Dummy" %}
-              <div
-                class="laminate-segment"
-                title="{{ layer.material_name }} · {{ layer.theta_deg | fmt3 }} deg · {{ layer.thickness_mm | fmt3 }} mm"
-                style="--segment-share: {{ layer.thickness_mm }}; background: {{ material_palette[layer.material_id] }};"
-              ></div>
-              {% endif %}
-              {% endfor %}
               {% endif %}
             </div>
           </div>
@@ -485,7 +473,6 @@
   const advancedPanel = document.getElementById("advanced-panel");
   const coreSelect = document.getElementById("core-material-select");
   const coreThicknessInput = document.getElementById("core-thickness-input");
-  const isSymmetricField = document.getElementById("is-symmetric-field");
   const customMaterialsField = document.getElementById("custom-materials-json");
   const customMaterialsGrid = document.getElementById("custom-materials-grid");
   const customMaterialsEmpty = document.getElementById("custom-materials-empty");
@@ -502,6 +489,13 @@
     ud: [{ value: "0", label: "0" }],
     fallback: [{ value: "0", label: "0" }],
   };
+  const escapeHtml = (value) =>
+    String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
 
   const restoreScrollPosition = () => {
     const savedPosition = sessionStorage.getItem(SCROLL_KEY);
@@ -611,9 +605,13 @@
 
   const renderSelectOptions = (select, materials, selectedValue) => {
     const previousValue = selectedValue || select.value || select.dataset.selected || "";
-    select.innerHTML = materials
-      .map((material) => `<option value="${material.id}">${material.name}</option>`)
-      .join("");
+    select.innerHTML = "";
+    materials.forEach((material) => {
+      const option = document.createElement("option");
+      option.value = material.id;
+      option.textContent = material.name;
+      select.appendChild(option);
+    });
     if (previousValue && materials.some((material) => material.id === previousValue)) {
       select.value = previousValue;
     }
@@ -675,12 +673,12 @@
       card.className = "ingredient-card custom-material-card material-accordion";
       card.innerHTML = `
         <summary class="material-accordion-summary">
-          <strong>${material.name}</strong>
+          <strong>${escapeHtml(material.name)}</strong>
           <span>${Number(material.thickness_mm).toFixed(3)} mm</span>
         </summary>
         <div class="material-accordion-body">
           <dl>
-            <div><dt>ID</dt><dd>${material.id}</dd></div>
+            <div><dt>ID</dt><dd>${escapeHtml(material.id)}</dd></div>
             <div><dt>Tipo</dt><dd>${material.material_category === "core" ? "Core" : "Fibra"}</dd></div>
             <div><dt>Familia</dt><dd>${material.material_category === "fiber" ? (material.fiber_family === "ud" ? "UD" : "Twill") : "-"}</dd></div>
             <div><dt>E1</dt><dd>${(Number(material.e1_pa) / 1e9).toFixed(3)} GPa</dd></div>
@@ -698,7 +696,7 @@
       material_id: row.querySelector('select[name="material_id"]').value,
       theta_deg: row.querySelector('select[name="theta_deg"]').value,
     })),
-    is_symmetric: isSymmetricField.value === "on",
+    is_symmetric: false,
     core_material_id: coreSelect.value,
     insert_dummy_layer_for_odd_compatibility: laminateForm.querySelector('input[name="insert_dummy_layer_for_odd_compatibility"]').checked,
     elastic_gradient: laminateForm.querySelector('input[name="elastic_gradient"]').value,
@@ -742,7 +740,6 @@
       renderThetaOptions(row);
     });
 
-    isSymmetricField.value = state.is_symmetric ? "on" : "";
     laminateForm.querySelector('input[name="insert_dummy_layer_for_odd_compatibility"]').checked = Boolean(state.insert_dummy_layer_for_odd_compatibility);
     coreSelect.value = state.core_material_id || coreSelect.value;
     laminateForm.querySelector('input[name="elastic_gradient"]').value = state.elastic_gradient ?? "";
@@ -760,7 +757,17 @@
     if (!resultsHtml || currentResultsSection) {
       return;
     }
-    restoredResultsContainer.innerHTML = resultsHtml;
+    const parser = new DOMParser();
+    const parsed = parser.parseFromString(resultsHtml, "text/html");
+    parsed.querySelectorAll("script, iframe, object, embed").forEach((node) => node.remove());
+    parsed.querySelectorAll("*").forEach((node) => {
+      [...node.attributes].forEach((attribute) => {
+        if (attribute.name.toLowerCase().startsWith("on")) {
+          node.removeAttribute(attribute.name);
+        }
+      });
+    });
+    restoredResultsContainer.replaceChildren(...parsed.body.childNodes);
   };
 
   const persistCurrentAnalysis = () => {

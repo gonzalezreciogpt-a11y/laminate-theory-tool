@@ -625,5 +625,3 @@ def build_results_export_workbook(entries: list[ExportHistoryEntryModel]) -> byt
 def build_export_filename() -> str:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     return f"resultados_sesion_{timestamp}.xlsx"
-    worksheet.row_dimensions[3].height = 38
-    worksheet.row_dimensions[4].height = 38
