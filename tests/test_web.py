@@ -76,7 +76,7 @@ def test_form_post_matches_matlab_g12g_when_legacy_dummy_is_enabled() -> None:
 def test_materials_library_page_renders() -> None:
     response = client.get("/materials-library")
     assert response.status_code == 200
-    assert "Gestiona tus materiales sin afectar al catálogo base de la app." in response.text
+    assert "Biblioteca de materiales." in response.text
     assert "Catálogo del proyecto" in response.text
     assert "MD Balsa Wood" in response.text
 
@@ -84,14 +84,14 @@ def test_materials_library_page_renders() -> None:
 def test_tutorial_page_renders() -> None:
     response = client.get("/tutorial")
     assert response.status_code == 200
-    assert "Aprende a usar la app paso a paso." in response.text
+    assert "Guía de uso." in response.text
     assert "Cómo trabajar con la app" in response.text
 
 
 def test_results_page_renders() -> None:
     response = client.get("/results")
     assert response.status_code == 200
-    assert "Exporta tus resultados." in response.text
+    assert "Resultados guardados." in response.text
     assert "Historial de resultados" in response.text
     assert "hero-actions hero-actions-wide" in response.text
     assert "result-group-details" in response.text
@@ -100,14 +100,14 @@ def test_results_page_renders() -> None:
 def test_compare_page_renders() -> None:
     response = client.get("/compare")
     assert response.status_code == 200
-    assert "Compara tus laminados guardados lado a lado." in response.text
+    assert "Comparador de resultados." in response.text
     assert "Comparativa activa" in response.text
 
 
 def test_shuffle_page_renders() -> None:
     response = client.get("/shuffle")
     assert response.status_code == 200
-    assert "Explora variantes del último laminado calculado." in response.text
+    assert "Shuffle de laminados." in response.text
     assert "Shuffle guiado" in response.text
     assert "Capas a variar" in response.text
     assert "Todas las capas" in response.text
