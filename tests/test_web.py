@@ -78,6 +78,29 @@ def test_form_post_uses_physical_sandwich_outputs() -> None:
     assert response.text.count('class="laminate-segment') >= 7
 
 
+def test_form_post_accepts_blank_advanced_fields_and_uses_defaults() -> None:
+    response = client.post(
+        "/",
+        data={
+            "material_id": ["RC416T", "UD", "RC416T"],
+            "theta_deg": ["45", "0", "90"],
+            "core_material_id": "Honeycomb",
+            "core_thickness_mm_override": "",
+            "elastic_gradient": "",
+            "rigidez_rig": "",
+            "span_m": "",
+            "span_mm": "",
+            "width_m": "",
+            "width_mm": "",
+        },
+    )
+    assert response.status_code == 200
+    assert "No hemos podido procesar el laminado" not in response.text
+    assert "could not convert string to float" not in response.text
+    assert "Elastic gradient theory" in response.text
+    assert "22.320 mm" in response.text
+
+
 def test_materials_library_page_renders() -> None:
     response = client.get("/materials-library")
     assert response.status_code == 200

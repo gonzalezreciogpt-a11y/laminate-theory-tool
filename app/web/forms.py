@@ -13,6 +13,13 @@ from app.schemas.inputs import (
 )
 
 
+def _parse_float_or_default(form: FormData, key: str, default: float) -> float:
+    raw_value = str(form.get(key, "")).strip()
+    if raw_value == "":
+        return default
+    return float(raw_value)
+
+
 def build_request_from_form(form: FormData) -> LaminateRequestModel:
     material_ids = form.getlist("material_id")
     theta_values = form.getlist("theta_deg")
@@ -71,11 +78,11 @@ def build_request_from_form(form: FormData) -> LaminateRequestModel:
         compatibility_mode="physical",
         custom_materials=[CustomMaterialModel(**material) for material in custom_materials_payload],
         three_point_bending=ThreePointBendingConfigModel(
-            elastic_gradient=float(form.get("elastic_gradient", 2649.0)),
-            rigidez_rig=float(form.get("rigidez_rig", 14871.0)),
-            span_m=float(form.get("span_m", 0.4)),
-            span_mm=float(form.get("span_mm", 400.0)),
-            width_m=float(form.get("width_m", 0.275)),
-            width_mm=float(form.get("width_mm", 275.0)),
+            elastic_gradient=_parse_float_or_default(form, "elastic_gradient", 2649.0),
+            rigidez_rig=_parse_float_or_default(form, "rigidez_rig", 14871.0),
+            span_m=_parse_float_or_default(form, "span_m", 0.4),
+            span_mm=_parse_float_or_default(form, "span_mm", 400.0),
+            width_m=_parse_float_or_default(form, "width_m", 0.275),
+            width_mm=_parse_float_or_default(form, "width_mm", 275.0),
         ),
     )
