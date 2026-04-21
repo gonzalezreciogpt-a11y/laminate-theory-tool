@@ -224,6 +224,7 @@
       const signature = decodeSignature(card.dataset.signature || "");
       card.classList.toggle("is-selected", selected.includes(signature));
       card.setAttribute("aria-pressed", selected.includes(signature) ? "true" : "false");
+      card.setAttribute("tabindex", selectionMode ? "0" : "-1");
     });
   };
 
@@ -271,7 +272,7 @@
                 </div>
                 <span>${Number(entry.summary.elastic_gradient_theory).toFixed(3)}</span>
               </div>
-              <label class="history-selection-toggle">
+              <label class="history-selection-toggle" aria-hidden="true">
                 <input type="checkbox" class="select-result-entry" data-signature="${encodedSignature}" ${selectedResults.has(entry.signature) ? "checked" : ""}>
                 <span>Seleccionar resultado</span>
               </label>
@@ -391,6 +392,23 @@
       selection.push(decodedSignature);
     }
     saveCompareSelection(selection);
+  });
+
+  resultsGroups.addEventListener("keydown", (event) => {
+    if (!selectionMode) {
+      return;
+    }
+    const card = event.target.closest(".history-card");
+    if (!card || !["Enter", " "].includes(event.key)) {
+      return;
+    }
+    event.preventDefault();
+    const decodedSignature = decodeSignature(card.dataset.signature);
+    const selection = getSelectedSignatures().filter((signature) => signature !== decodedSignature);
+    if (!getSelectedSignatures().includes(decodedSignature)) {
+      selection.push(decodedSignature);
+    }
+    setSelectedSignatures(selection);
   });
 
   clearButton.addEventListener("click", () => {
