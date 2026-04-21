@@ -91,25 +91,6 @@
   <h2>No se ha podido completar la descarga</h2>
   <p id="export-feedback-message">Vuelve a intentarlo.</p>
 </article>
-<article class="app-card export-choice-modal" id="export-choice-modal" hidden>
-  <div class="card-head">
-    <div>
-      <p class="card-kicker">Exportación</p>
-      <h2>Elige qué quieres exportar</h2>
-    </div>
-    <button type="button" class="ghost-button" id="close-export-choice">Cerrar</button>
-  </div>
-  <div class="export-choice-grid">
-    <button type="button" class="export-choice-card" id="export-all-results">
-      <strong>Exportar todo</strong>
-      <span>Incluye todos los resultados guardados de esta sesión.</span>
-    </button>
-    <button type="button" class="export-choice-card" id="export-current-selection">
-      <strong>Exportar selección</strong>
-      <span>Usa solo los resultados que tengas marcados ahora.</span>
-    </button>
-  </div>
-</article>
 
 <script>
   const LAST_ANALYSIS_KEY = "laminate_tool_last_analysis_v1";
@@ -128,10 +109,6 @@
   const clearSelectedResultsButton = document.getElementById("clear-selected-results");
   const deleteSelectedResultsButton = document.getElementById("delete-selected-results");
   const exportSelectedResultsButton = document.getElementById("export-selected-results");
-  const exportChoiceModal = document.getElementById("export-choice-modal");
-  const closeExportChoiceButton = document.getElementById("close-export-choice");
-  const exportAllResultsButton = document.getElementById("export-all-results");
-  const exportCurrentSelectionButton = document.getElementById("export-current-selection");
   const escapeHtml = (value) =>
     String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -467,20 +444,12 @@
     }
   };
 
-  const openExportChoice = () => {
-    exportChoiceModal.hidden = false;
-  };
-
-  const closeExportChoice = () => {
-    exportChoiceModal.hidden = true;
-  };
-
-  exportButton.addEventListener("click", () => {
+  exportButton.addEventListener("click", async () => {
     if (!loadHistory().length) {
       showExportError("No hay resultados guardados para exportar.");
       return;
     }
-    openExportChoice();
+    await downloadExport(loadHistory());
   });
 
   exportSelectedResultsButton.addEventListener("click", async () => {
@@ -488,20 +457,6 @@
     const selected = new Set(getSelectedSignatures());
     await downloadExport(history.filter((entry) => selected.has(entry.signature)));
   });
-
-  exportAllResultsButton.addEventListener("click", async () => {
-    await downloadExport(loadHistory());
-    closeExportChoice();
-  });
-
-  exportCurrentSelectionButton.addEventListener("click", async () => {
-    const history = loadHistory();
-    const selected = new Set(getSelectedSignatures());
-    await downloadExport(history.filter((entry) => selected.has(entry.signature)));
-    closeExportChoice();
-  });
-
-  closeExportChoiceButton.addEventListener("click", closeExportChoice);
 
   toggleSelectionModeButton.addEventListener("click", () => {
     selectionMode = !selectionMode;

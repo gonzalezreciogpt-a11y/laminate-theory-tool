@@ -46,7 +46,7 @@
         </div>
       </div>
 
-      <form method="post" class="stack-form" id="laminate-form">
+      <form method="post" class="stack-form" id="laminate-form" autocomplete="off">
         <input type="hidden" name="custom_materials_json" id="custom-materials-json" value='{{ form_state.custom_materials | default([], true) | tojson }}'>
 
         <div class="control-grid control-grid-top control-grid-structural">
@@ -553,31 +553,36 @@
     }
   };
 
-  const parseHiddenCustomMaterials = () => {
-    try {
-      return JSON.parse(customMaterialsField.value || "[]");
-    } catch {
-      return [];
-    }
-  };
-
   const withFiberFamilyDefaults = (materials) =>
     materials.map((material) => ({
       ...material,
       fiber_family:
         material.fiber_family ?? (material.material_category === "fiber" ? "twill" : null),
     }));
-  const mergeCustomMaterials = (...materialGroups) => {
-    const materialsById = new Map();
-    materialGroups
-      .flat()
-      .filter((material) => material && material.id)
-      .forEach((material) => {
-        materialsById.set(material.id, material);
-      });
-    return withFiberFamilyDefaults([...materialsById.values()]);
+  const filterValidCustomMaterials = (materials) =>
+    withFiberFamilyDefaults((materials || []).filter((material) => material && material.id));
+  const collectReferencedMaterialIds = (state) => {
+    const referencedIds = new Set();
+    (state?.layers || []).forEach((layer) => {
+      if (layer?.material_id) {
+        referencedIds.add(layer.material_id);
+      }
+    });
+    (state?.bottom_layers || []).forEach((layer) => {
+      if (layer?.material_id) {
+        referencedIds.add(layer.material_id);
+      }
+    });
+    if (state?.core_material_id) {
+      referencedIds.add(state.core_material_id);
+    }
+    return referencedIds;
   };
-  let customMaterials = mergeCustomMaterials(parseHiddenCustomMaterials(), loadCustomMaterials());
+  const buildReferencedCustomMaterialSnapshot = (state) => {
+    const referencedIds = collectReferencedMaterialIds(state);
+    return customMaterials.filter((material) => referencedIds.has(material.id));
+  };
+  let customMaterials = filterValidCustomMaterials(loadCustomMaterials());
   const buildMergedCatalog = () => {
     const materialsById = new Map();
     [...allBaseMaterials, ...withFiberFamilyDefaults(customMaterials)].forEach((material) => {
@@ -663,6 +668,12 @@
       ? options.find((option) => String(Number(option.value)) === previousValue).value
       : options[0].value;
     thetaSelect.dataset.selected = thetaSelect.value;
+  };
+
+  const applyDefaultSymmetry = () => {
+    if (!localStorage.getItem(LAST_ANALYSIS_KEY)) {
+      isSymmetricToggle.checked = true;
+    }
   };
 
   const refreshLayerLabels = () => {
@@ -751,26 +762,29 @@
     });
   };
 
-  const serializeFormState = () => ({
-    layers: Array.from(layers.querySelectorAll(".layer-row")).map((row) => ({
-      material_id: row.querySelector("[data-material-select]").value,
-      theta_deg: row.querySelector("[data-theta-select]").value,
-    })),
-    bottom_layers: Array.from(bottomLayers.querySelectorAll(".layer-row")).map((row) => ({
-      material_id: row.querySelector("[data-material-select]").value,
-      theta_deg: row.querySelector("[data-theta-select]").value,
-    })),
-    is_symmetric: isSymmetricToggle.checked,
-    core_material_id: coreSelect.value,
-    insert_dummy_layer_for_odd_compatibility: false,
-    elastic_gradient: laminateForm.querySelector('input[name="elastic_gradient"]').value,
-    rigidez_rig: laminateForm.querySelector('input[name="rigidez_rig"]').value,
-    span_m: laminateForm.querySelector('input[name="span_m"]').value,
-    span_mm: laminateForm.querySelector('input[name="span_mm"]').value,
-    width_m: laminateForm.querySelector('input[name="width_m"]').value,
-    width_mm: laminateForm.querySelector('input[name="width_mm"]').value,
-    custom_materials: JSON.parse(customMaterialsField.value || "[]"),
-  });
+  const serializeFormState = () => {
+    const state = {
+      layers: Array.from(layers.querySelectorAll(".layer-row")).map((row) => ({
+        material_id: row.querySelector("[data-material-select]").value,
+        theta_deg: row.querySelector("[data-theta-select]").value,
+      })),
+      bottom_layers: Array.from(bottomLayers.querySelectorAll(".layer-row")).map((row) => ({
+        material_id: row.querySelector("[data-material-select]").value,
+        theta_deg: row.querySelector("[data-theta-select]").value,
+      })),
+      is_symmetric: isSymmetricToggle.checked,
+      core_material_id: coreSelect.value,
+      insert_dummy_layer_for_odd_compatibility: false,
+      elastic_gradient: laminateForm.querySelector('input[name="elastic_gradient"]').value,
+      rigidez_rig: laminateForm.querySelector('input[name="rigidez_rig"]').value,
+      span_m: laminateForm.querySelector('input[name="span_m"]').value,
+      span_mm: laminateForm.querySelector('input[name="span_mm"]').value,
+      width_m: laminateForm.querySelector('input[name="width_m"]').value,
+      width_mm: laminateForm.querySelector('input[name="width_mm"]').value,
+    };
+    state.custom_materials = buildReferencedCustomMaterialSnapshot(state);
+    return state;
+  };
 
   const buildHistorySignature = (state) => JSON.stringify({
     layers: state.layers,
@@ -784,7 +798,10 @@
     if (!state || !state.layers?.length) {
       return;
     }
-    customMaterials = mergeCustomMaterials(state.custom_materials || [], loadCustomMaterials());
+    // The browser catalog is the source of truth for editable custom materials.
+    // Snapshots from old analyses remain useful for history/export, but should not
+    // resurrect deleted materials in the live calculator catalog.
+    customMaterials = filterValidCustomMaterials(loadCustomMaterials());
     renderCustomMaterialsCatalog();
     layers.innerHTML = "";
     bottomLayers.innerHTML = "";
@@ -947,6 +964,7 @@
   });
 
   restoreScrollPosition();
+  applyDefaultSymmetry();
   syncMaterialControls();
   renderCustomMaterialsCatalog();
   restoreLastAnalysis();

@@ -150,6 +150,7 @@ def test_results_page_renders() -> None:
     assert "result-group-details" in response.text
     assert 'id="results-selection-toolbar" hidden' in response.text
     assert "Seleccionar visibles" not in response.text
+    assert 'id="export-choice-modal"' not in response.text
 
 
 def test_compare_page_renders() -> None:

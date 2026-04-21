@@ -218,6 +218,7 @@
 
 <script>
   const STORAGE_KEY = "laminate_tool_custom_materials_v1";
+  const LAST_ANALYSIS_KEY = "laminate_tool_last_analysis_v1";
   const materialForm = document.getElementById("material-form");
   const libraryContainer = document.getElementById("library-custom-materials");
   const emptyState = document.getElementById("library-empty-state");
@@ -266,6 +267,38 @@
 
   const saveMaterials = (materials) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(materials));
+  };
+  const analysisReferencesMaterial = (entry, materialId) => {
+    const formState = entry?.form_state;
+    if (!formState || !materialId) {
+      return false;
+    }
+    const topReferences = (formState.layers || []).some((layer) => layer?.material_id === materialId);
+    const bottomReferences = (formState.bottom_layers || []).some((layer) => layer?.material_id === materialId);
+    const coreReference = formState.core_material_id === materialId;
+    return topReferences || bottomReferences || coreReference;
+  };
+  const pruneLastAnalysisForDeletedMaterial = (materialId) => {
+    try {
+      const raw = localStorage.getItem(LAST_ANALYSIS_KEY);
+      if (!raw) {
+        return;
+      }
+      const entry = JSON.parse(raw);
+      if (analysisReferencesMaterial(entry, materialId)) {
+        localStorage.removeItem(LAST_ANALYSIS_KEY);
+        return;
+      }
+      if (!entry?.form_state) {
+        return;
+      }
+      entry.form_state.custom_materials = (entry.form_state.custom_materials || []).filter(
+        (material) => material?.id !== materialId
+      );
+      localStorage.setItem(LAST_ANALYSIS_KEY, JSON.stringify(entry));
+    } catch {
+      localStorage.removeItem(LAST_ANALYSIS_KEY);
+    }
   };
 
   const reservedIds = new Set(["Dummy"]);
@@ -408,10 +441,12 @@
     }
 
     if (deleteButton) {
-      customMaterials = customMaterials.filter((item) => item.id !== deleteButton.dataset.id);
+      const deletedMaterialId = deleteButton.dataset.id;
+      customMaterials = customMaterials.filter((item) => item.id !== deletedMaterialId);
       saveMaterials(customMaterials);
+      pruneLastAnalysisForDeletedMaterial(deletedMaterialId);
       renderCustomMaterials();
-      if (editingMaterialId === deleteButton.dataset.id) {
+      if (editingMaterialId === deletedMaterialId) {
         clearForm();
       }
     }
