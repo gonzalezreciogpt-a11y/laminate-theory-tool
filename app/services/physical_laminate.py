@@ -17,7 +17,10 @@ from app.services.sandwich_trace import (
     compute_top_skin_trace,
     compute_visible_sandwich_trace,
 )
-from app.services.three_point_bending import compute_three_point_bending_physical
+from app.services.three_point_bending import (
+    compute_three_point_bending_physical,
+    compute_three_point_bending_physical_unsymmetric,
+)
 from app.services.validators import validate_request
 
 
@@ -37,19 +40,35 @@ def analyze_laminate_physical(request: LaminateRequestModel) -> LaminateAnalysis
         d_matrix=d_matrix,
         total_thickness_mm=sandwich_trace.total_thickness_mm,
     )
-    top_skin_equivalent = compute_equivalent_properties_physical(
-        a_matrix=top_skin_a,
-        d_matrix=top_skin_d,
-        total_thickness_mm=top_skin_trace.total_thickness_mm,
-    )
 
     core_layer = next(layer for layer in display_layers if layer.zone == "core")
-    bending = compute_three_point_bending_physical(
-        e_skin_pa=float(top_skin_equivalent["e11_pa"]),
-        t_skin_one_side_mm=top_skin_trace.total_thickness_mm,
-        t_core_mm=core_layer.thickness_mm,
-        defaults=request.three_point_bending or load_three_point_bending_defaults(),
-    )
+    if request.is_symmetric:
+        top_skin_equivalent = compute_equivalent_properties_physical(
+            a_matrix=top_skin_a,
+            d_matrix=top_skin_d,
+            total_thickness_mm=top_skin_trace.total_thickness_mm,
+        )
+        bending = compute_three_point_bending_physical(
+            e_skin_pa=float(top_skin_equivalent["e11_pa"]),
+            t_skin_one_side_mm=top_skin_trace.total_thickness_mm,
+            t_core_mm=core_layer.thickness_mm,
+            defaults=request.three_point_bending or load_three_point_bending_defaults(),
+        )
+    else:
+        total_fiber_thickness_mm = sum(
+            layer.thickness_mm for layer in display_layers if layer.zone != "core"
+        )
+        bending = compute_three_point_bending_physical_unsymmetric(
+            a_matrix=a_matrix,
+            b_matrix=np.array(sandwich_trace.b_matrix, dtype=float),
+            d_matrix=d_matrix,
+            total_fiber_thickness_mm=total_fiber_thickness_mm,
+            t_core_mm=core_layer.thickness_mm,
+            defaults=request.three_point_bending or load_three_point_bending_defaults(),
+        )
+        warnings.append(
+            "Laminado no simetrico: EI y Elastic gradient theory se calculan con la rigidez efectiva D* = D - B A^-1 B. E fibra ensayo no aplica en este modo."
+        )
 
     generated_layers = [
         GeneratedLayerModel(

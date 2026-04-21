@@ -40,6 +40,7 @@ class CustomMaterialModel(BaseModel):
 
 class LaminateRequestModel(BaseModel):
     layers: list[LayerInputModel]
+    bottom_layers: list[LayerInputModel] = Field(default_factory=list)
     is_symmetric: bool = True
     core_material_id: str = "Honeycomb"
     insert_dummy_layer_for_odd_compatibility: bool = False

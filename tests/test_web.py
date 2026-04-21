@@ -25,8 +25,8 @@ def test_home_page_renders() -> None:
     assert "Calculadora de laminados." in response.text
     assert "Materiales disponibles" in response.text
     assert "Servicio público: los cálculos se ejecutan en el servidor" in response.text
-    assert "Laminado simétrico" not in response.text
-    assert 'name="is_symmetric"' not in response.text
+    assert "Laminado simétrico" in response.text
+    assert 'name="is_symmetric"' in response.text
     assert "Espesor del core (mm)" in response.text
     assert "material-accordion" in response.text
     assert "Ingredientes disponibles" not in response.text
@@ -59,6 +59,7 @@ def test_form_post_uses_physical_sandwich_outputs() -> None:
         data={
             "material_id": ["RC416T", "UD", "RC416T"],
             "theta_deg": ["45", "0", "90"],
+            "is_symmetric": "on",
             "core_material_id": "Honeycomb",
             "elastic_gradient": "2649",
             "rigidez_rig": "14871",
@@ -84,6 +85,7 @@ def test_form_post_accepts_blank_advanced_fields_and_uses_defaults() -> None:
         data={
             "material_id": ["RC416T", "UD", "RC416T"],
             "theta_deg": ["45", "0", "90"],
+            "is_symmetric": "on",
             "core_material_id": "Honeycomb",
             "core_thickness_mm_override": "",
             "elastic_gradient": "",
@@ -99,6 +101,29 @@ def test_form_post_accepts_blank_advanced_fields_and_uses_defaults() -> None:
     assert "could not convert string to float" not in response.text
     assert "Elastic gradient theory" in response.text
     assert "22.320 mm" in response.text
+
+
+def test_form_post_supports_unsymmetric_bottom_layers() -> None:
+    response = client.post(
+        "/",
+        data={
+            "material_id": ["RC416T", "UD"],
+            "theta_deg": ["45", "0"],
+            "bottom_material_id": ["RC416T"],
+            "bottom_theta_deg": ["90"],
+            "core_material_id": "Honeycomb",
+            "elastic_gradient": "2649",
+            "rigidez_rig": "14871",
+            "span_m": "0.4",
+            "span_mm": "400",
+            "width_m": "0.275",
+            "width_mm": "275",
+        },
+    )
+    assert response.status_code == 200
+    assert "No hemos podido procesar el laminado" not in response.text
+    assert "21.160 mm" in response.text
+    assert "Traza CLT del sandwich" in response.text
 
 
 def test_materials_library_page_renders() -> None:

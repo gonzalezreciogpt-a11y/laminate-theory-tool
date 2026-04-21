@@ -40,7 +40,7 @@
           <h2>Definición del laminado</h2>
         </div>
         <div class="card-head-actions">
-          <button type="button" class="secondary-button" data-add-layer>Añadir capa</button>
+          <button type="button" class="secondary-button" data-add-layer-target="top">Añadir capa superior</button>
           <button type="submit" class="primary-button" form="laminate-form">Calcular laminado</button>
           <button type="button" class="secondary-button" id="toggle-advanced">Modo avanzado</button>
         </div>
@@ -49,7 +49,13 @@
       <form method="post" class="stack-form" id="laminate-form">
         <input type="hidden" name="custom_materials_json" id="custom-materials-json" value='{{ form_state.custom_materials | default([], true) | tojson }}'>
 
-        <div class="control-grid control-grid-top control-grid-core-only">
+        <div class="control-grid control-grid-top control-grid-structural">
+          <label class="toggle-field">
+            <div>
+              <span class="toggle-title">Laminado simétrico</span>
+            </div>
+            <input type="checkbox" name="is_symmetric" id="is-symmetric-toggle" {% if form_state.is_symmetric %}checked{% endif %}>
+          </label>
           <label class="core-field">
             <span>Core</span>
             <select name="core_material_id" id="core-material-select" data-selected="{{ form_state.core_material_id }}">
@@ -64,29 +70,62 @@
           </label>
         </div>
 
-        <div id="layers" class="layer-stack">
-          {% for layer in form_state.layers %}
-          <div class="layer-row">
-            <div class="layer-index">Capa {{ loop.index }}</div>
-            <label>
-              <span>Material</span>
-              <select name="material_id" data-selected="{{ layer.material_id }}">
-                {% for material in materials %}
-                <option value="{{ material.id }}" {% if material.id == layer.material_id %}selected{% endif %}>{{ material.name }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              <span>Orientación (deg)</span>
-              <select name="theta_deg" data-selected="{{ layer.theta_deg }}"></select>
-            </label>
-            <button type="button" class="ghost-button remove-layer">Quitar</button>
+        <div class="materials-block layer-block">
+          <div class="materials-block-head">
+            <h3>Capas superiores</h3>
           </div>
-          {% endfor %}
+          <div id="layers" class="layer-stack">
+            {% for layer in form_state.layers %}
+            <div class="layer-row">
+              <div class="layer-index">Capa {{ loop.index }}</div>
+              <label>
+                <span>Material</span>
+                <select name="material_id" data-material-select data-selected="{{ layer.material_id }}">
+                  {% for material in materials %}
+                  <option value="{{ material.id }}" {% if material.id == layer.material_id %}selected{% endif %}>{{ material.name }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                <span>Orientación (deg)</span>
+                <select name="theta_deg" data-theta-select data-selected="{{ layer.theta_deg }}"></select>
+              </label>
+              <button type="button" class="ghost-button remove-layer">Quitar</button>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="materials-block layer-block" id="bottom-skin-section" {% if form_state.is_symmetric %}hidden{% endif %}>
+          <div class="materials-block-head">
+            <h3>Capas inferiores</h3>
+            <button type="button" class="secondary-button" data-add-layer-target="bottom">Añadir capa inferior</button>
+          </div>
+          <div id="bottom-layers" class="layer-stack">
+            {% for layer in form_state.bottom_layers | default([], true) %}
+            <div class="layer-row">
+              <div class="layer-index">Capa {{ loop.index }}</div>
+              <label>
+                <span>Material</span>
+                <select name="bottom_material_id" data-material-select data-selected="{{ layer.material_id }}">
+                  {% for material in materials %}
+                  <option value="{{ material.id }}" {% if material.id == layer.material_id %}selected{% endif %}>{{ material.name }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                <span>Orientación (deg)</span>
+                <select name="bottom_theta_deg" data-theta-select data-selected="{{ layer.theta_deg }}"></select>
+              </label>
+              <button type="button" class="ghost-button remove-layer">Quitar</button>
+            </div>
+            {% endfor %}
+          </div>
         </div>
 
         <div class="layer-actions-bottom">
-          <button type="button" class="secondary-button" data-add-layer>Añadir capa</button>
+          <button type="button" class="secondary-button" data-add-layer-target="top">Añadir capa superior</button>
+          <button type="button" class="secondary-button" data-add-layer-target="bottom" id="add-bottom-layer-button" {% if form_state.is_symmetric %}hidden{% endif %}>Añadir capa inferior</button>
           <button type="submit" class="primary-button">Calcular</button>
         </div>
 
@@ -233,7 +272,7 @@
   </div>
 
   <div class="results-grid">
-    {% set summary = namespace(layer_count=form_state.layers|length, core_thickness=0.0) %}
+    {% set summary = namespace(layer_count=(form_state.layers|length if form_state.is_symmetric else (form_state.layers|length + form_state.bottom_layers|length)), core_thickness=0.0) %}
     {% for layer in display_layers %}
     {% if layer.zone == "core" %}
     {% set summary.core_thickness = layer.thickness_mm %}
@@ -401,7 +440,7 @@
     "fiber_thickness_mm": {{ result.three_point_bending.th_fibra_mm | tojson }},
     "total_thickness_mm": {{ total_laminate_thickness_mm | tojson }},
     "core_material_id": {{ form_state.core_material_id | tojson }},
-    "is_symmetric": true,
+    "is_symmetric": {{ form_state.is_symmetric | tojson }},
     "visible_layers": {{ summary.layer_count | tojson }}
   }
 </script>
@@ -417,11 +456,26 @@
     <div class="layer-index">Capa</div>
     <label>
       <span>Material</span>
-      <select name="material_id"></select>
+      <select name="material_id" data-material-select></select>
     </label>
     <label>
       <span>Orientación (deg)</span>
-      <select name="theta_deg" data-selected="45"></select>
+      <select name="theta_deg" data-theta-select data-selected="45"></select>
+    </label>
+    <button type="button" class="ghost-button remove-layer">Quitar</button>
+  </div>
+</template>
+
+<template id="bottom-layer-template">
+  <div class="layer-row">
+    <div class="layer-index">Capa</div>
+    <label>
+      <span>Material</span>
+      <select name="bottom_material_id" data-material-select></select>
+    </label>
+    <label>
+      <span>Orientación (deg)</span>
+      <select name="bottom_theta_deg" data-theta-select data-selected="45"></select>
     </label>
     <button type="button" class="ghost-button remove-layer">Quitar</button>
   </div>
@@ -436,10 +490,15 @@
   const baseMaterials = JSON.parse(document.getElementById("base-materials-data").textContent);
   const allBaseMaterials = JSON.parse(document.getElementById("all-materials-data").textContent);
   const layers = document.getElementById("layers");
+  const bottomLayers = document.getElementById("bottom-layers");
   const layerTemplate = document.getElementById("layer-template");
-  const addLayerButtons = document.querySelectorAll("[data-add-layer]");
+  const bottomLayerTemplate = document.getElementById("bottom-layer-template");
+  const addTopLayerButtons = document.querySelectorAll('[data-add-layer-target="top"]');
+  const addBottomLayerButtons = document.querySelectorAll('[data-add-layer-target="bottom"]');
   const toggleAdvancedButton = document.getElementById("toggle-advanced");
   const advancedPanel = document.getElementById("advanced-panel");
+  const isSymmetricToggle = document.getElementById("is-symmetric-toggle");
+  const bottomSkinSection = document.getElementById("bottom-skin-section");
   const coreSelect = document.getElementById("core-material-select");
   const coreThicknessInput = document.getElementById("core-thickness-input");
   const customMaterialsField = document.getElementById("custom-materials-json");
@@ -590,8 +649,8 @@
     buildMergedCatalog().find((material) => material.id === materialId);
 
   const renderThetaOptions = (row) => {
-    const materialSelect = row.querySelector('select[name="material_id"]');
-    const thetaSelect = row.querySelector('select[name="theta_deg"]');
+    const materialSelect = row.querySelector("[data-material-select]");
+    const thetaSelect = row.querySelector("[data-theta-select]");
     const material = getMaterialById(materialSelect.value);
     const family = material?.fiber_family || "fallback";
     const options = ORIENTATION_OPTIONS[family] || ORIENTATION_OPTIONS.fallback;
@@ -607,26 +666,58 @@
   };
 
   const refreshLayerLabels = () => {
-    layers.querySelectorAll(".layer-row").forEach((row, index) => {
-      const label = row.querySelector(".layer-index");
-      if (label) {
-        label.textContent = `Capa ${index + 1}`;
+    [layers, bottomLayers].forEach((container) => {
+      if (!container) {
+        return;
       }
+      container.querySelectorAll(".layer-row").forEach((row, index) => {
+        const label = row.querySelector(".layer-index");
+        if (label) {
+          label.textContent = `Capa ${index + 1}`;
+        }
+      });
     });
+  };
+
+  const appendLayerRow = (container, template) => {
+    const node = template.content.cloneNode(true);
+    container.appendChild(node);
+  };
+
+  const syncSymmetryUI = ({ ensureBottomRow = true } = {}) => {
+    const isSymmetric = isSymmetricToggle.checked;
+    bottomSkinSection.hidden = isSymmetric;
+    addBottomLayerButtons.forEach((button) => {
+      button.hidden = isSymmetric;
+      button.disabled = isSymmetric;
+    });
+    bottomSkinSection.querySelectorAll("select, button").forEach((element) => {
+      element.disabled = isSymmetric;
+    });
+    if (!isSymmetric && ensureBottomRow && !bottomLayers.querySelector(".layer-row")) {
+      appendLayerRow(bottomLayers, bottomLayerTemplate);
+      syncMaterialControls();
+    }
   };
 
   const syncMaterialControls = () => {
     const availableMaterials = buildFiberMaterials();
-    layers.querySelectorAll('select[name="material_id"]').forEach((select) => {
-      renderSelectOptions(select, availableMaterials, select.dataset.selected);
-    });
-    layers.querySelectorAll(".layer-row").forEach((row) => {
-      renderThetaOptions(row);
+    [layers, bottomLayers].forEach((container) => {
+      if (!container) {
+        return;
+      }
+      container.querySelectorAll("[data-material-select]").forEach((select) => {
+        renderSelectOptions(select, availableMaterials, select.dataset.selected);
+      });
+      container.querySelectorAll(".layer-row").forEach((row) => {
+        renderThetaOptions(row);
+      });
     });
     renderSelectOptions(coreSelect, buildCoreMaterials(), coreSelect.dataset.selected);
     refreshLayerLabels();
     updateHiddenCustomMaterialsField();
     syncCoreThicknessInput();
+    syncSymmetryUI({ ensureBottomRow: false });
   };
 
   const renderCustomMaterialsCatalog = () => {
@@ -662,10 +753,14 @@
 
   const serializeFormState = () => ({
     layers: Array.from(layers.querySelectorAll(".layer-row")).map((row) => ({
-      material_id: row.querySelector('select[name="material_id"]').value,
-      theta_deg: row.querySelector('select[name="theta_deg"]').value,
+      material_id: row.querySelector("[data-material-select]").value,
+      theta_deg: row.querySelector("[data-theta-select]").value,
     })),
-    is_symmetric: true,
+    bottom_layers: Array.from(bottomLayers.querySelectorAll(".layer-row")).map((row) => ({
+      material_id: row.querySelector("[data-material-select]").value,
+      theta_deg: row.querySelector("[data-theta-select]").value,
+    })),
+    is_symmetric: isSymmetricToggle.checked,
     core_material_id: coreSelect.value,
     insert_dummy_layer_for_odd_compatibility: false,
     elastic_gradient: laminateForm.querySelector('input[name="elastic_gradient"]').value,
@@ -679,6 +774,7 @@
 
   const buildHistorySignature = (state) => JSON.stringify({
     layers: state.layers,
+    bottom_layers: state.bottom_layers || [],
     is_symmetric: state.is_symmetric,
     core_material_id: state.core_material_id,
     insert_dummy_layer_for_odd_compatibility: state.insert_dummy_layer_for_odd_compatibility,
@@ -691,10 +787,14 @@
     customMaterials = mergeCustomMaterials(state.custom_materials || [], loadCustomMaterials());
     renderCustomMaterialsCatalog();
     layers.innerHTML = "";
+    bottomLayers.innerHTML = "";
     state.layers.forEach(() => {
-      const node = layerTemplate.content.cloneNode(true);
-      layers.appendChild(node);
+      appendLayerRow(layers, layerTemplate);
     });
+    (state.bottom_layers || []).forEach(() => {
+      appendLayerRow(bottomLayers, bottomLayerTemplate);
+    });
+    isSymmetricToggle.checked = state.is_symmetric !== false;
     syncMaterialControls();
 
     layers.querySelectorAll(".layer-row").forEach((row, index) => {
@@ -709,7 +809,18 @@
       renderThetaOptions(row);
     });
 
-    
+    bottomLayers.querySelectorAll(".layer-row").forEach((row, index) => {
+      const layer = (state.bottom_layers || [])[index];
+      if (!layer) {
+        return;
+      }
+      const materialSelect = row.querySelector("[data-material-select]");
+      const thetaSelect = row.querySelector("[data-theta-select]");
+      materialSelect.value = layer.material_id;
+      thetaSelect.dataset.selected = String(Number(layer.theta_deg));
+      renderThetaOptions(row);
+    });
+
     coreSelect.value = state.core_material_id || coreSelect.value;
     laminateForm.querySelector('input[name="elastic_gradient"]').value = state.elastic_gradient ?? "";
     laminateForm.querySelector('input[name="rigidez_rig"]').value = state.rigidez_rig ?? "";
@@ -720,6 +831,7 @@
     updateHiddenCustomMaterialsField();
     refreshLayerLabels();
     syncCoreThicknessInput();
+    syncSymmetryUI();
   };
 
   const restoreResultsSnapshot = (resultsHtml) => {
@@ -778,30 +890,38 @@
     }
   };
 
-  addLayerButtons.forEach((button) => {
+  addTopLayerButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      const node = layerTemplate.content.cloneNode(true);
-      layers.appendChild(node);
+      appendLayerRow(layers, layerTemplate);
       syncMaterialControls();
     });
   });
 
-  layers.addEventListener("click", (event) => {
+  addBottomLayerButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      appendLayerRow(bottomLayers, bottomLayerTemplate);
+      syncMaterialControls();
+    });
+  });
+
+  laminateForm.addEventListener("click", (event) => {
     if (event.target.classList.contains("remove-layer")) {
-      const rows = layers.querySelectorAll(".layer-row");
-      if (rows.length > 1) {
+      const container = event.target.closest(".layer-stack");
+      const rows = container.querySelectorAll(".layer-row");
+      const minimumRows = container === layers ? 1 : 0;
+      if (rows.length > minimumRows) {
         event.target.closest(".layer-row").remove();
         syncMaterialControls();
       }
     }
   });
 
-  layers.addEventListener("change", (event) => {
-    if (event.target.matches('select[name="material_id"]')) {
+  laminateForm.addEventListener("change", (event) => {
+    if (event.target.matches("[data-material-select]")) {
       const row = event.target.closest(".layer-row");
       renderThetaOptions(row);
     }
-    if (event.target.matches('select[name="theta_deg"]')) {
+    if (event.target.matches("[data-theta-select]")) {
       event.target.dataset.selected = event.target.value;
     }
   });
@@ -809,6 +929,10 @@
   coreSelect.addEventListener("change", () => {
     coreSelect.dataset.selected = coreSelect.value;
     syncCoreThicknessInput();
+  });
+
+  isSymmetricToggle.addEventListener("change", () => {
+    syncSymmetryUI();
   });
 
   toggleAdvancedButton.addEventListener("click", () => {

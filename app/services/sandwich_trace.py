@@ -69,11 +69,18 @@ def build_qbar(material: Material, theta_deg: float) -> np.ndarray:
     )
 
 
-def _build_skin_layers(request: LaminateRequestModel) -> list[SandwichDisplayLayer]:
+def _build_skin_layers(
+    request: LaminateRequestModel,
+    *,
+    side: str,
+) -> list[SandwichDisplayLayer]:
     catalog = build_material_catalog([material.model_dump() for material in request.custom_materials])
+    source_layers = request.layers if side == "top" else request.bottom_layers
+    zone = "superior" if side == "top" else "inferior"
+    source = "user-top-skin" if side == "top" else "user-bottom-skin"
     skin_layers: list[SandwichDisplayLayer] = []
 
-    for index, layer in enumerate(request.layers, start=1):
+    for index, layer in enumerate(source_layers, start=1):
         material = catalog[layer.material_id]
         if material.id == "Dummy":
             continue
@@ -85,16 +92,26 @@ def _build_skin_layers(request: LaminateRequestModel) -> list[SandwichDisplayLay
                 material=material,
                 theta_deg=layer.theta_deg,
                 thickness_mm=material.thickness_mm,
-                zone="superior",
-                source="user-top-skin",
+                zone=zone,
+                source=source,
             )
         )
     return skin_layers
 
 
+def build_top_skin_layers(request: LaminateRequestModel) -> list[SandwichDisplayLayer]:
+    return _build_skin_layers(request, side="top")
+
+
+def build_bottom_skin_layers(request: LaminateRequestModel) -> list[SandwichDisplayLayer]:
+    if request.is_symmetric:
+        return []
+    return _build_skin_layers(request, side="bottom")
+
+
 def build_visible_sandwich_layers(request: LaminateRequestModel) -> list[SandwichDisplayLayer]:
     catalog = build_material_catalog([material.model_dump() for material in request.custom_materials])
-    top_layers = _build_skin_layers(request)
+    top_layers = build_top_skin_layers(request)
     core_material = catalog[request.core_material_id]
 
     display_layers = list(top_layers)
@@ -111,7 +128,25 @@ def build_visible_sandwich_layers(request: LaminateRequestModel) -> list[Sandwic
         )
     )
 
-    for layer in reversed(top_layers):
+    bottom_layers = (
+        [
+            SandwichDisplayLayer(
+                index=0,
+                material_id=layer.material_id,
+                material_name=layer.material_name,
+                material=layer.material,
+                theta_deg=layer.theta_deg,
+                thickness_mm=layer.thickness_mm,
+                zone="inferior",
+                source="auto-mirrored-bottom-skin",
+            )
+            for layer in reversed(top_layers)
+        ]
+        if request.is_symmetric
+        else build_bottom_skin_layers(request)
+    )
+
+    for layer in bottom_layers:
         display_layers.append(
             SandwichDisplayLayer(
                 index=len(display_layers) + 1,
@@ -121,7 +156,7 @@ def build_visible_sandwich_layers(request: LaminateRequestModel) -> list[Sandwic
                 theta_deg=layer.theta_deg,
                 thickness_mm=layer.thickness_mm,
                 zone="inferior",
-                source="auto-mirrored-bottom-skin",
+                source=layer.source,
             )
         )
 
@@ -157,7 +192,11 @@ def compute_trace_for_layers(layers: list[SandwichDisplayLayer]) -> SandwichTrac
 
 
 def compute_top_skin_trace(request: LaminateRequestModel) -> SandwichTrace:
-    return compute_trace_for_layers(_build_skin_layers(request))
+    return compute_trace_for_layers(build_top_skin_layers(request))
+
+
+def compute_bottom_skin_trace(request: LaminateRequestModel) -> SandwichTrace:
+    return compute_trace_for_layers(build_bottom_skin_layers(request))
 
 
 def compute_visible_sandwich_trace(request: LaminateRequestModel) -> SandwichTrace:

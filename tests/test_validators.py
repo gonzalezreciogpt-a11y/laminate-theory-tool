@@ -89,3 +89,15 @@ def test_allows_local_override_of_base_material_id() -> None:
     )
     warnings = validate_request(payload)
     assert isinstance(warnings, list)
+
+
+def test_rejects_explicit_bottom_layers_when_request_is_symmetric() -> None:
+    payload = LaminateRequestModel(
+        layers=[{"material_id": "RC416T", "theta_deg": 45.0}],
+        bottom_layers=[{"material_id": "RC416T", "theta_deg": 90.0}],
+        is_symmetric=True,
+        core_material_id="Honeycomb",
+    )
+
+    with pytest.raises(ValueError, match="capas inferiores explicitas"):
+        validate_request(payload)

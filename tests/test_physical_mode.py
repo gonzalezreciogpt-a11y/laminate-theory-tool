@@ -102,3 +102,29 @@ def test_physical_mode_e_fibra_ensayo_inverts_professor_formula() -> None:
         rtol=1e-9,
         atol=1e-9,
     )
+
+
+def test_physical_mode_supports_explicit_bottom_skin_for_unsymmetric_laminate() -> None:
+    payload = LaminateRequestModel(
+        layers=[
+            {"material_id": "RC416T", "theta_deg": 45.0},
+            {"material_id": "UD", "theta_deg": 0.0},
+        ],
+        bottom_layers=[
+            {"material_id": "RC416T", "theta_deg": 90.0},
+        ],
+        is_symmetric=False,
+        core_material_id="Honeycomb",
+    )
+
+    result = analyze_laminate(payload)
+
+    assert [layer.material_id for layer in result.generated_layers] == [
+        "RC416T",
+        "UD",
+        "Honeycomb",
+        "RC416T",
+    ]
+    assert result.trace.b_matrix[0][0] != 0.0
+    assert result.three_point_bending.e_fibra_ensayo is None
+    assert round(result.three_point_bending.th_fibra_mm, 3) == 1.160

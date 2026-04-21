@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import numpy as np
+
 from app.domain.materials import ThreePointBendingDefaults
 
 
@@ -74,5 +76,37 @@ def compute_three_point_bending_physical(
         "ei_theory": ei_theory,
         "elastic_gradient_theory": elastic_gradient_theory,
         "th_fibra_mm": t_skin_one_side_mm,
+        "legacy_capa_central_value": t_core_mm,
+    }
+
+
+def compute_three_point_bending_physical_unsymmetric(
+    *,
+    a_matrix: np.ndarray,
+    b_matrix: np.ndarray,
+    d_matrix: np.ndarray,
+    total_fiber_thickness_mm: float,
+    t_core_mm: float,
+    defaults: ThreePointBendingDefaults,
+) -> dict[str, float | None]:
+    elastic_gradient_corrected = (
+        defaults.elastic_gradient * defaults.rigidez_rig
+    ) / (defaults.rigidez_rig - defaults.elastic_gradient)
+    ei_ensayo = elastic_gradient_corrected * 1000.0 * (defaults.span_m**3) / 48.0
+
+    a_inverse = np.linalg.inv(a_matrix)
+    d_effective = d_matrix - (b_matrix @ a_inverse @ b_matrix)
+    ei_theory = float(d_effective[0, 0]) * defaults.width_m * 1e-9
+    elastic_gradient_theory = 48.0 * ei_theory / ((defaults.span_m**3) * 1000.0)
+
+    return {
+        "elastic_gradient": defaults.elastic_gradient,
+        "rigidez_rig": defaults.rigidez_rig,
+        "elastic_gradient_corrected": elastic_gradient_corrected,
+        "ei_ensayo": ei_ensayo,
+        "e_fibra_ensayo": None,
+        "ei_theory": ei_theory,
+        "elastic_gradient_theory": elastic_gradient_theory,
+        "th_fibra_mm": total_fiber_thickness_mm,
         "legacy_capa_central_value": t_core_mm,
     }

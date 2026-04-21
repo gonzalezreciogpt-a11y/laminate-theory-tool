@@ -269,6 +269,7 @@
 
   const buildSignature = (state) => JSON.stringify({
     layers: state.layers,
+    bottom_layers: state.bottom_layers || [],
     is_symmetric: state.is_symmetric,
     core_material_id: state.core_material_id,
     insert_dummy_layer_for_odd_compatibility: state.insert_dummy_layer_for_odd_compatibility,
@@ -279,9 +280,9 @@
   const buildHistoryEntry = (batchEntry) => {
     const request = batchEntry.request;
     const result = batchEntry.result;
-    const visibleLayers = Array.isArray(result.generated_layers)
+    const visibleLayers = request.is_symmetric
       ? request.layers.length
-      : request.layers.length;
+      : request.layers.length + (request.bottom_layers || []).length;
     return {
       signature: buildSignature(request),
       saved_at: new Date().toISOString(),
@@ -292,7 +293,7 @@
         fiber_thickness_mm: result.three_point_bending.th_fibra_mm,
         total_thickness_mm: calculateVisibleTotalThickness(request, result),
         core_material_id: request.core_material_id,
-        is_symmetric: true,
+        is_symmetric: Boolean(request.is_symmetric),
         visible_layers: visibleLayers,
       },
       result_data: result,
@@ -804,6 +805,15 @@
     baseEntry = loadBaseEntry();
     if (!baseEntry?.form_state?.layers?.length) {
       shuffleMissingBase.hidden = false;
+      shuffleMissingBase.querySelector("h2").textContent = "Primero calcula un laminado";
+      shuffleForm.querySelectorAll("input, select, button").forEach((element) => {
+        element.disabled = true;
+      });
+      return;
+    }
+    if (baseEntry.form_state.is_symmetric === false || (baseEntry.form_state.bottom_layers || []).length) {
+      shuffleMissingBase.hidden = false;
+      shuffleMissingBase.querySelector("h2").textContent = "Shuffle solo disponible para laminados simétricos";
       shuffleForm.querySelectorAll("input, select, button").forEach((element) => {
         element.disabled = true;
       });

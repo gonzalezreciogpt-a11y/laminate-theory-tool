@@ -87,6 +87,7 @@ def build_default_form_state() -> dict[str, object]:
             {"material_id": "UD", "theta_deg": 0},
             {"material_id": "RC416T", "theta_deg": 90},
         ],
+        "bottom_layers": [],
         "is_symmetric": True,
         "core_material_id": "Honeycomb",
         "insert_dummy_layer_for_odd_compatibility": False,
@@ -104,14 +105,19 @@ def _build_export_summary(
     request_model: LaminateRequestModel,
     result_model,
 ) -> ExportSummaryModel:
+    visible_layers = (
+        len(request_model.layers)
+        if request_model.is_symmetric
+        else len(request_model.layers) + len(request_model.bottom_layers)
+    )
     return ExportSummaryModel(
         elastic_gradient_theory=result_model.three_point_bending.elastic_gradient_theory,
         ei_theory=result_model.three_point_bending.ei_theory,
         fiber_thickness_mm=result_model.three_point_bending.th_fibra_mm,
         total_thickness_mm=result_model.trace.espesor_total_mm,
         core_material_id=request_model.core_material_id,
-        is_symmetric=request_model.compatibility_mode != "legacy",
-        visible_layers=len(request_model.layers),
+        is_symmetric=request_model.is_symmetric if request_model.compatibility_mode == "physical" else False,
+        visible_layers=visible_layers,
     )
 
 
@@ -164,6 +170,7 @@ async def calculate(request: Request) -> HTMLResponse:
         payload = build_request_from_form(form)
         form_state = {
             "layers": [layer.model_dump() for layer in payload.layers],
+            "bottom_layers": [layer.model_dump() for layer in payload.bottom_layers],
             "is_symmetric": payload.is_symmetric,
             "core_material_id": payload.core_material_id,
             "insert_dummy_layer_for_odd_compatibility": payload.insert_dummy_layer_for_odd_compatibility,

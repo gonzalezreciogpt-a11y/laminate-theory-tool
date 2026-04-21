@@ -30,7 +30,7 @@ class ThreePointBendingResultModel(BaseModel):
     rigidez_rig: float
     elastic_gradient_corrected: float
     ei_ensayo: float
-    e_fibra_ensayo: float
+    e_fibra_ensayo: float | None
     ei_theory: float
     elastic_gradient_theory: float
     th_fibra_mm: float

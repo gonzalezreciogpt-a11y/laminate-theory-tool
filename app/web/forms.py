@@ -23,7 +23,10 @@ def _parse_float_or_default(form: FormData, key: str, default: float) -> float:
 def build_request_from_form(form: FormData) -> LaminateRequestModel:
     material_ids = form.getlist("material_id")
     theta_values = form.getlist("theta_deg")
+    bottom_material_ids = form.getlist("bottom_material_id")
+    bottom_theta_values = form.getlist("bottom_theta_deg")
     layers: list[LayerInputModel] = []
+    bottom_layers: list[LayerInputModel] = []
 
     for material_id, theta_value in zip(material_ids, theta_values, strict=False):
         material_id = material_id.strip()
@@ -31,6 +34,13 @@ def build_request_from_form(form: FormData) -> LaminateRequestModel:
         if not material_id or theta_value == "":
             continue
         layers.append(LayerInputModel(material_id=material_id, theta_deg=float(theta_value)))
+
+    for material_id, theta_value in zip(bottom_material_ids, bottom_theta_values, strict=False):
+        material_id = material_id.strip()
+        theta_value = theta_value.strip()
+        if not material_id or theta_value == "":
+            continue
+        bottom_layers.append(LayerInputModel(material_id=material_id, theta_deg=float(theta_value)))
 
     custom_materials_json = str(form.get("custom_materials_json", "[]"))
     custom_materials_payload = json.loads(custom_materials_json)
@@ -69,7 +79,8 @@ def build_request_from_form(form: FormData) -> LaminateRequestModel:
 
     return LaminateRequestModel(
         layers=layers,
-        is_symmetric=True,
+        bottom_layers=bottom_layers,
+        is_symmetric=form.get("is_symmetric") == "on",
         core_material_id=core_material_id,
         insert_dummy_layer_for_odd_compatibility=form.get(
             "insert_dummy_layer_for_odd_compatibility"
