@@ -217,14 +217,17 @@
     deleteSelectedResultsButton.disabled = selected.length === 0;
     toggleSelectionModeButton.textContent = selectionMode ? "Cancelar selección" : "Seleccionar";
     resultsGroups.classList.toggle("results-selection-mode", selectionMode);
-    resultsGroups.querySelectorAll(".select-result-entry").forEach((checkbox) => {
-      checkbox.checked = selected.includes(decodeSignature(checkbox.dataset.signature));
-    });
     resultsGroups.querySelectorAll(".history-card").forEach((card) => {
       const signature = decodeSignature(card.dataset.signature || "");
-      card.classList.toggle("is-selected", selected.includes(signature));
-      card.setAttribute("aria-pressed", selected.includes(signature) ? "true" : "false");
+      const isSelected = selected.includes(signature);
+      card.classList.toggle("is-selected", isSelected);
+      card.setAttribute("aria-pressed", isSelected ? "true" : "false");
       card.setAttribute("tabindex", selectionMode ? "0" : "-1");
+      const selectButton = card.querySelector(".select-result-button");
+      if (selectButton) {
+        selectButton.textContent = isSelected ? "Seleccionado" : "Seleccionar";
+        selectButton.setAttribute("aria-pressed", isSelected ? "true" : "false");
+      }
     });
   };
 
@@ -272,10 +275,6 @@
                 </div>
                 <span>${Number(entry.summary.elastic_gradient_theory).toFixed(3)}</span>
               </div>
-              <label class="history-selection-toggle" aria-hidden="true">
-                <input type="checkbox" class="select-result-entry" data-signature="${encodedSignature}" ${selectedResults.has(entry.signature) ? "checked" : ""}>
-                <span>Seleccionar resultado</span>
-              </label>
               <label class="history-compare-toggle">
                 <input type="checkbox" class="compare-result-entry" data-signature="${encodedSignature}" ${compareSelection.has(entry.signature) ? "checked" : ""}>
                 <span>Incluir en comparador</span>
@@ -289,6 +288,7 @@
                 <div><dt>Simetría</dt><dd>${entry.summary.is_symmetric ? "Sí" : "No"}</dd></div>
               </dl>
               <div class="library-actions">
+                <button type="button" class="secondary-button select-result-button" data-signature="${encodedSignature}" aria-pressed="${selectedResults.has(entry.signature) ? "true" : "false"}">${selectedResults.has(entry.signature) ? "Seleccionado" : "Seleccionar"}</button>
                 <button type="button" class="secondary-button open-result-entry" data-signature="${encodedSignature}">Abrir en calculadora</button>
                 <a class="secondary-link" href="/compare">Comparar</a>
                 <button type="button" class="ghost-button delete-result-entry" data-signature="${encodedSignature}">Borrar</button>
@@ -318,14 +318,24 @@
     const card = event.target.closest(".history-card");
     const openButton = event.target.closest(".open-result-entry");
     const deleteButton = event.target.closest(".delete-result-entry");
+    const selectButton = event.target.closest(".select-result-button");
     const history = loadHistory();
+
+    if (selectButton) {
+      const decodedSignature = decodeSignature(selectButton.dataset.signature);
+      const selection = getSelectedSignatures().filter((signature) => signature !== decodedSignature);
+      if (!getSelectedSignatures().includes(decodedSignature)) {
+        selection.push(decodedSignature);
+      }
+      setSelectedSignatures(selection);
+      return;
+    }
 
     if (
       selectionMode &&
       card &&
       !event.target.closest(".library-actions") &&
       !event.target.closest(".history-compare-toggle") &&
-      !event.target.closest(".history-selection-toggle") &&
       !event.target.closest("a") &&
       !event.target.closest("button") &&
       !event.target.closest("input")
@@ -366,17 +376,7 @@
   });
 
   resultsGroups.addEventListener("change", (event) => {
-    const selectCheckbox = event.target.closest(".select-result-entry");
     const compareCheckbox = event.target.closest(".compare-result-entry");
-    if (selectCheckbox) {
-      const decodedSignature = decodeSignature(selectCheckbox.dataset.signature);
-      const selection = getSelectedSignatures().filter((signature) => signature !== decodedSignature);
-      if (selectCheckbox.checked) {
-        selection.push(decodedSignature);
-      }
-      setSelectedSignatures(selection);
-      return;
-    }
     if (!compareCheckbox) {
       return;
     }
@@ -515,9 +515,9 @@
   });
 
   selectVisibleResultsButton.addEventListener("click", () => {
-    const visible = [...resultsGroups.querySelectorAll(".select-result-entry")]
-      .filter((checkbox) => checkbox.offsetParent !== null)
-      .map((checkbox) => decodeSignature(checkbox.dataset.signature));
+    const visible = [...resultsGroups.querySelectorAll(".history-card")]
+      .filter((card) => card.offsetParent !== null)
+      .map((card) => decodeSignature(card.dataset.signature || ""));
     setSelectedSignatures(visible);
   });
 
