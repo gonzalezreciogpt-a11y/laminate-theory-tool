@@ -275,6 +275,8 @@
   const syncFiberFamilyVisibility = () => {
     const isFiber = fieldMap.material_category.value === "fiber";
     fiberFamilyField.hidden = !isFiber;
+    fieldMap.fiber_family.disabled = !isFiber;
+    fiberFamilyField.classList.toggle("is-disabled", !isFiber);
     if (!isFiber) {
       fieldMap.fiber_family.value = "twill";
     }

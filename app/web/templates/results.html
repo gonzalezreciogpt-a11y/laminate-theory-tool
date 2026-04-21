@@ -10,6 +10,7 @@
     <div class="hero-actions hero-actions-wide">
       <a class="primary-link" href="/">Volver a la calculadora</a>
       <a class="secondary-link" href="/compare">Abrir comparador</a>
+      <button type="button" class="secondary-button" id="toggle-selection-mode">Seleccionar</button>
       <button type="button" class="secondary-button" id="clear-results-history">Vaciar historial</button>
       <div class="hero-actions-spacer"></div>
       <button type="button" class="excel-export-button" id="export-results-history" aria-label="Exportar resultados a Excel">
@@ -45,22 +46,81 @@
     <p>Calcula un laminado para empezar a construir tu biblioteca de resultados.</p>
   </article>
 </section>
+<article class="app-card selection-toolbar" id="results-selection-toolbar" hidden>
+  <div class="selection-toolbar-copy">
+    <p class="card-kicker">Selección</p>
+    <h2><span id="selection-count">0</span> resultados seleccionados</h2>
+  </div>
+  <div class="selection-toolbar-actions">
+    <button type="button" class="secondary-button" id="select-visible-results">Seleccionar visibles</button>
+    <button type="button" class="secondary-button" id="clear-selected-results">Limpiar selección</button>
+    <button type="button" class="ghost-button" id="delete-selected-results" disabled>Borrar seleccionados</button>
+    <button type="button" class="excel-export-button excel-export-button-compact" id="export-selected-results" disabled aria-label="Exportar selección a Excel">
+      <span class="excel-export-icon" aria-hidden="true">
+        <svg viewBox="0 0 64 64" role="img" focusable="false">
+          <path d="M18 6h22l14 14v30a8 8 0 0 1-8 8H18a8 8 0 0 1-8-8V14a8 8 0 0 1 8-8Z" fill="#ffffff"/>
+          <path d="M40 6v14h14" fill="#dff3e7"/>
+          <path d="M40 6v10a4 4 0 0 0 4 4h10" fill="none" stroke="#1f7a45" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M18 6h22l14 14v30a8 8 0 0 1-8 8H18a8 8 0 0 1-8-8V14a8 8 0 0 1 8-8Z" fill="none" stroke="#1f7a45" stroke-width="3" stroke-linejoin="round"/>
+          <rect x="6" y="18" width="24" height="28" rx="5" fill="#1f7a45"/>
+          <path d="m13 24 10 16M23 24 13 40" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+          <path d="M36 30h12M36 38h12M36 46h8" stroke="#77b88f" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="excel-export-copy">
+        <strong>Exportar selección</strong>
+        <small>Solo lo marcado</small>
+      </span>
+    </button>
+  </div>
+</article>
 <article class="feedback-card feedback-card-danger" id="export-feedback" hidden>
   <p class="eyebrow">Exportación</p>
   <h2>No se ha podido completar la descarga</h2>
   <p id="export-feedback-message">Vuelve a intentarlo.</p>
+</article>
+<article class="app-card export-choice-modal" id="export-choice-modal" hidden>
+  <div class="card-head">
+    <div>
+      <p class="card-kicker">Exportación</p>
+      <h2>Elige qué quieres exportar</h2>
+    </div>
+    <button type="button" class="ghost-button" id="close-export-choice">Cerrar</button>
+  </div>
+  <div class="export-choice-grid">
+    <button type="button" class="export-choice-card" id="export-all-results">
+      <strong>Exportar todo</strong>
+      <span>Incluye todos los resultados guardados de esta sesión.</span>
+    </button>
+    <button type="button" class="export-choice-card" id="export-current-selection">
+      <strong>Exportar selección</strong>
+      <span>Usa solo los resultados que tengas marcados ahora.</span>
+    </button>
+  </div>
 </article>
 
 <script>
   const LAST_ANALYSIS_KEY = "laminate_tool_last_analysis_v1";
   const HISTORY_KEY = "laminate_tool_history_v1";
   const COMPARE_SELECTION_KEY = "laminate_tool_compare_selection_v1";
+  const RESULTS_SELECTION_KEY = "laminate_tool_results_selection_v1";
   const resultsGroups = document.getElementById("results-groups");
   const emptyState = document.getElementById("results-empty-state");
   const clearButton = document.getElementById("clear-results-history");
   const exportButton = document.getElementById("export-results-history");
   const exportFeedback = document.getElementById("export-feedback");
   const exportFeedbackMessage = document.getElementById("export-feedback-message");
+  const toggleSelectionModeButton = document.getElementById("toggle-selection-mode");
+  const selectionToolbar = document.getElementById("results-selection-toolbar");
+  const selectionCount = document.getElementById("selection-count");
+  const selectVisibleResultsButton = document.getElementById("select-visible-results");
+  const clearSelectedResultsButton = document.getElementById("clear-selected-results");
+  const deleteSelectedResultsButton = document.getElementById("delete-selected-results");
+  const exportSelectedResultsButton = document.getElementById("export-selected-results");
+  const exportChoiceModal = document.getElementById("export-choice-modal");
+  const closeExportChoiceButton = document.getElementById("close-export-choice");
+  const exportAllResultsButton = document.getElementById("export-all-results");
+  const exportCurrentSelectionButton = document.getElementById("export-current-selection");
   const escapeHtml = (value) =>
     String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -70,6 +130,8 @@
       .replaceAll("'", "&#39;");
   const encodeSignature = (value) => encodeURIComponent(String(value ?? ""));
   const decodeSignature = (value) => decodeURIComponent(String(value ?? ""));
+  let selectionMode = false;
+  let groupOpenState = {};
 
   const loadCompareSelection = () => {
     try {
@@ -99,6 +161,58 @@
     localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
   };
 
+  const loadResultsSelection = () => {
+    try {
+      const raw = sessionStorage.getItem(RESULTS_SELECTION_KEY) || localStorage.getItem(RESULTS_SELECTION_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const saveResultsSelection = (selection) => {
+    const payload = JSON.stringify(selection);
+    sessionStorage.setItem(RESULTS_SELECTION_KEY, payload);
+    localStorage.setItem(RESULTS_SELECTION_KEY, payload);
+  };
+
+  const captureOpenGroups = () => {
+    groupOpenState = {};
+    resultsGroups.querySelectorAll(".result-group-details").forEach((details) => {
+      groupOpenState[details.dataset.groupKey] = details.open;
+    });
+  };
+
+  const getSelectedSignatures = () => loadResultsSelection().filter(Boolean);
+
+  const setSelectedSignatures = (selection) => {
+    saveResultsSelection([...new Set(selection)]);
+    updateSelectionUI();
+  };
+
+  const updateSelectionUI = () => {
+    const history = loadHistory();
+    const selected = getSelectedSignatures().filter((signature) =>
+      history.some((entry) => entry.signature === signature)
+    );
+    if (selected.length !== getSelectedSignatures().length) {
+      saveResultsSelection(selected);
+    }
+    selectionCount.textContent = String(selected.length);
+    selectionToolbar.hidden = !selectionMode;
+    exportSelectedResultsButton.disabled = selected.length === 0;
+    deleteSelectedResultsButton.disabled = selected.length === 0;
+    toggleSelectionModeButton.textContent = selectionMode ? "Cancelar selección" : "Seleccionar";
+    resultsGroups.classList.toggle("results-selection-mode", selectionMode);
+    resultsGroups.querySelectorAll(".select-result-entry").forEach((checkbox) => {
+      checkbox.checked = selected.includes(decodeSignature(checkbox.dataset.signature));
+    });
+    resultsGroups.querySelectorAll(".history-card").forEach((card) => {
+      const signature = decodeSignature(card.dataset.signature || "");
+      card.classList.toggle("is-selected", selected.includes(signature));
+    });
+  };
+
   const sortEntries = (entries) =>
     [...entries].sort((left, right) => Number(right.summary.ei_theory) - Number(left.summary.ei_theory));
 
@@ -116,6 +230,7 @@
   const renderHistory = () => {
     const history = loadHistory();
     const compareSelection = new Set(loadCompareSelection());
+    const selectedResults = new Set(getSelectedSignatures());
     resultsGroups.innerHTML = "";
     exportButton.disabled = history.length === 0;
 
@@ -134,7 +249,7 @@
             const savedAt = entry.saved_at ? new Date(entry.saved_at).toLocaleString("es-ES") : "Sin fecha";
             const encodedSignature = encodeSignature(entry.signature);
             return `
-            <article class="history-card history-card-wide">
+            <article class="history-card history-card-wide${selectedResults.has(entry.signature) ? " is-selected" : ""}" data-signature="${encodedSignature}">
               <div class="history-card-head">
                 <div>
                   <h3>${layerCount} capas visibles</h3>
@@ -142,6 +257,10 @@
                 </div>
                 <span>${Number(entry.summary.elastic_gradient_theory).toFixed(3)}</span>
               </div>
+              <label class="history-selection-toggle">
+                <input type="checkbox" class="select-result-entry" data-signature="${encodedSignature}" ${selectedResults.has(entry.signature) ? "checked" : ""}>
+                <span>Seleccionar resultado</span>
+              </label>
               <label class="history-compare-toggle">
                 <input type="checkbox" class="compare-result-entry" data-signature="${encodedSignature}" ${compareSelection.has(entry.signature) ? "checked" : ""}>
                 <span>Incluir en comparador</span>
@@ -165,7 +284,7 @@
         .join("");
 
       section.innerHTML = `
-        <details class="details-panel result-group-details">
+        <details class="details-panel result-group-details" data-group-key="${layerCount}" ${groupOpenState[String(layerCount)] ? "open" : ""}>
           <summary>
             <span>${layerCount} capas</span>
             <span class="result-group-summary-meta">${entries.length} resultados</span>
@@ -177,6 +296,7 @@
       `;
       resultsGroups.appendChild(section);
     });
+    updateSelectionUI();
   };
 
   resultsGroups.addEventListener("click", (event) => {
@@ -194,6 +314,7 @@
     }
 
     if (deleteButton) {
+      captureOpenGroups();
       const decodedSignature = decodeSignature(deleteButton.dataset.signature);
       const filtered = history.filter((item) => item.signature !== decodedSignature);
       saveHistory(filtered);
@@ -201,12 +322,23 @@
         localStorage.removeItem(LAST_ANALYSIS_KEY);
       }
       saveCompareSelection(loadCompareSelection().filter((signature) => signature !== decodedSignature));
+      saveResultsSelection(getSelectedSignatures().filter((signature) => signature !== decodedSignature));
       renderHistory();
     }
   });
 
   resultsGroups.addEventListener("change", (event) => {
+    const selectCheckbox = event.target.closest(".select-result-entry");
     const compareCheckbox = event.target.closest(".compare-result-entry");
+    if (selectCheckbox) {
+      const decodedSignature = decodeSignature(selectCheckbox.dataset.signature);
+      const selection = getSelectedSignatures().filter((signature) => signature !== decodedSignature);
+      if (selectCheckbox.checked) {
+        selection.push(decodedSignature);
+      }
+      setSelectedSignatures(selection);
+      return;
+    }
     if (!compareCheckbox) {
       return;
     }
@@ -225,10 +357,13 @@
   });
 
   clearButton.addEventListener("click", () => {
+    captureOpenGroups();
     localStorage.removeItem(HISTORY_KEY);
     localStorage.removeItem(LAST_ANALYSIS_KEY);
     localStorage.removeItem(COMPARE_SELECTION_KEY);
+    localStorage.removeItem(RESULTS_SELECTION_KEY);
     sessionStorage.removeItem(COMPARE_SELECTION_KEY);
+    sessionStorage.removeItem(RESULTS_SELECTION_KEY);
     renderHistory();
   });
 
@@ -237,10 +372,9 @@
     exportFeedback.hidden = false;
   };
 
-  exportButton.addEventListener("click", async () => {
+  const downloadExport = async (entries) => {
     exportFeedback.hidden = true;
-    const history = loadHistory();
-    if (!history.length) {
+    if (!entries.length) {
       showExportError("No hay resultados guardados para exportar.");
       return;
     }
@@ -251,7 +385,7 @@
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ entries: history }),
+        body: JSON.stringify({ entries }),
       });
 
       if (!response.ok) {
@@ -277,6 +411,75 @@
     } catch (error) {
       showExportError("Ha ocurrido un error inesperado al generar el Excel.");
     }
+  };
+
+  const openExportChoice = () => {
+    exportChoiceModal.hidden = false;
+  };
+
+  const closeExportChoice = () => {
+    exportChoiceModal.hidden = true;
+  };
+
+  exportButton.addEventListener("click", () => {
+    if (!loadHistory().length) {
+      showExportError("No hay resultados guardados para exportar.");
+      return;
+    }
+    openExportChoice();
+  });
+
+  exportSelectedResultsButton.addEventListener("click", async () => {
+    const history = loadHistory();
+    const selected = new Set(getSelectedSignatures());
+    await downloadExport(history.filter((entry) => selected.has(entry.signature)));
+  });
+
+  exportAllResultsButton.addEventListener("click", async () => {
+    await downloadExport(loadHistory());
+    closeExportChoice();
+  });
+
+  exportCurrentSelectionButton.addEventListener("click", async () => {
+    const history = loadHistory();
+    const selected = new Set(getSelectedSignatures());
+    await downloadExport(history.filter((entry) => selected.has(entry.signature)));
+    closeExportChoice();
+  });
+
+  closeExportChoiceButton.addEventListener("click", closeExportChoice);
+
+  toggleSelectionModeButton.addEventListener("click", () => {
+    selectionMode = !selectionMode;
+    if (!selectionMode) {
+      setSelectedSignatures([]);
+    } else {
+      updateSelectionUI();
+    }
+  });
+
+  selectVisibleResultsButton.addEventListener("click", () => {
+    const visible = [...resultsGroups.querySelectorAll(".select-result-entry")]
+      .filter((checkbox) => checkbox.offsetParent !== null)
+      .map((checkbox) => decodeSignature(checkbox.dataset.signature));
+    setSelectedSignatures(visible);
+  });
+
+  clearSelectedResultsButton.addEventListener("click", () => {
+    setSelectedSignatures([]);
+  });
+
+  deleteSelectedResultsButton.addEventListener("click", () => {
+    captureOpenGroups();
+    const selected = new Set(getSelectedSignatures());
+    const filtered = loadHistory().filter((entry) => !selected.has(entry.signature));
+    saveHistory(filtered);
+    saveCompareSelection(loadCompareSelection().filter((signature) => !selected.has(signature)));
+    setSelectedSignatures([]);
+    if (!filtered.length) {
+      localStorage.removeItem(LAST_ANALYSIS_KEY);
+    }
+    renderHistory();
   });
 
   renderHistory();
