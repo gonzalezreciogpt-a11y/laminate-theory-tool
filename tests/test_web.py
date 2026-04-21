@@ -123,6 +123,8 @@ def test_results_page_renders() -> None:
     assert "Historial de resultados" in response.text
     assert "hero-actions hero-actions-wide" in response.text
     assert "result-group-details" in response.text
+    assert 'id="results-selection-toolbar" hidden' in response.text
+    assert "Seleccionar visibles" not in response.text
 
 
 def test_compare_page_renders() -> None:

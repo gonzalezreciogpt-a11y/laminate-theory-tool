@@ -40,7 +40,6 @@
     <h2><span id="selection-count">0</span> resultados seleccionados</h2>
   </div>
   <div class="selection-toolbar-actions">
-    <button type="button" class="secondary-button" id="select-visible-results">Seleccionar visibles</button>
     <button type="button" class="secondary-button" id="clear-selected-results">Limpiar selección</button>
     <button type="button" class="excel-export-button excel-delete-button excel-export-button-compact" id="delete-selected-results" disabled aria-label="Borrar selección">
       <span class="excel-export-icon" aria-hidden="true">
@@ -126,7 +125,6 @@
   const toggleSelectionModeButton = document.getElementById("toggle-selection-mode");
   const selectionToolbar = document.getElementById("results-selection-toolbar");
   const selectionCount = document.getElementById("selection-count");
-  const selectVisibleResultsButton = document.getElementById("select-visible-results");
   const clearSelectedResultsButton = document.getElementById("clear-selected-results");
   const deleteSelectedResultsButton = document.getElementById("delete-selected-results");
   const exportSelectedResultsButton = document.getElementById("export-selected-results");
@@ -513,13 +511,6 @@
       captureOpenGroups();
       updateSelectionUI();
     }
-  });
-
-  selectVisibleResultsButton.addEventListener("click", () => {
-    const visible = [...resultsGroups.querySelectorAll(".history-card")]
-      .filter((card) => card.offsetParent !== null)
-      .map((card) => decodeSignature(card.dataset.signature || ""));
-    setSelectedSignatures(visible);
   });
 
   clearSelectedResultsButton.addEventListener("click", () => {
