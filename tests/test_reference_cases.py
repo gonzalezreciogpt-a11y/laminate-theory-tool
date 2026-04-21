@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from app.schemas.inputs import LaminateRequestModel
-from app.services.legacy_compatibility import analyze_laminate
+from app.services.legacy_compatibility import analyze_laminate_legacy
 
 
 REFERENCE_DIR = Path("examples/reference_cases")
@@ -30,8 +30,9 @@ def assert_close_matrix(actual: list[list[float]], expected: list[list[float]]) 
 @pytest.mark.parametrize(("input_name", "golden_name"), REFERENCE_PAIRS)
 def test_reference_case_matches_matlab_golden(input_name: str, golden_name: str) -> None:
     payload = LaminateRequestModel(**load_json(input_name))
+    payload.compatibility_mode = "legacy"
     golden = load_json(golden_name)
-    result = analyze_laminate(payload)
+    result = analyze_laminate_legacy(payload)
 
     np.testing.assert_allclose(result.trace.espesor_total_mm, golden["espesor_total_mm"], rtol=0, atol=1e-9)
     np.testing.assert_allclose(result.trace.z_mm, golden["z_mm"], rtol=0, atol=1e-9)

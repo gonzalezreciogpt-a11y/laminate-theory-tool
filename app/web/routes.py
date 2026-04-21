@@ -15,7 +15,7 @@ from app.schemas.inputs import LaminateRequestModel
 from app.schemas.results_export import ExportHistoryEntryModel, ExportResultsRequestModel, ExportSummaryModel
 from app.services.legacy_compatibility import analyze_laminate
 from app.services.results_export import build_export_filename, build_results_export_workbook
-from app.services.sandwich_trace import build_visible_sandwich_layers, compute_visible_sandwich_trace
+from app.services.sandwich_trace import build_visible_sandwich_layers
 from app.web.forms import build_request_from_form
 
 
@@ -69,7 +69,12 @@ def build_material_palette(generated_layers: list[object] | None) -> dict[str, s
     mapping: dict[str, str] = {}
     for layer in generated_layers:
         material_id = getattr(layer, "material_id", "")
-        if not material_id or material_id == "Dummy" or material_id in mapping:
+        if (
+            not material_id
+            or material_id == "Dummy"
+            or material_id in mapping
+            or getattr(layer, "source", "") == "auto-core"
+        ):
             continue
         mapping[material_id] = palette[len(mapping) % len(palette)]
     return mapping
@@ -82,9 +87,9 @@ def build_default_form_state() -> dict[str, object]:
             {"material_id": "UD", "theta_deg": 0},
             {"material_id": "RC416T", "theta_deg": 90},
         ],
-        "is_symmetric": False,
+        "is_symmetric": True,
         "core_material_id": "Honeycomb",
-        "insert_dummy_layer_for_odd_compatibility": True,
+        "insert_dummy_layer_for_odd_compatibility": False,
         "elastic_gradient": 2649.0,
         "rigidez_rig": 14871.0,
         "span_m": 0.4,
@@ -99,18 +104,14 @@ def _build_export_summary(
     request_model: LaminateRequestModel,
     result_model,
 ) -> ExportSummaryModel:
-    sandwich_trace = compute_visible_sandwich_trace(request_model)
-    visible_layers = len(
-        [layer for layer in result_model.generated_layers if layer.material_id != "Dummy"]
-    )
     return ExportSummaryModel(
         elastic_gradient_theory=result_model.three_point_bending.elastic_gradient_theory,
         ei_theory=result_model.three_point_bending.ei_theory,
-        fiber_thickness_mm=result_model.trace.espesor_total_mm,
-        total_thickness_mm=sandwich_trace.total_thickness_mm,
+        fiber_thickness_mm=result_model.three_point_bending.th_fibra_mm,
+        total_thickness_mm=result_model.trace.espesor_total_mm,
         core_material_id=request_model.core_material_id,
-        is_symmetric=request_model.is_symmetric,
-        visible_layers=visible_layers,
+        is_symmetric=request_model.compatibility_mode != "legacy",
+        visible_layers=len(request_model.layers),
     )
 
 
@@ -143,7 +144,6 @@ async def index(request: Request) -> HTMLResponse:
             "form_state": build_default_form_state(),
             "result": None,
             "display_layers": [],
-            "sandwich_trace": None,
             "material_palette": {},
             "errors": [],
         },
@@ -156,7 +156,6 @@ async def calculate(request: Request) -> HTMLResponse:
     errors: list[str] = []
     result = None
     display_layers = []
-    sandwich_trace = None
     form_state = build_default_form_state()
     base_materials = [material_to_dict(material) for material in list_materials(public_only=True)]
     all_materials = [material_to_dict(material) for material in list_materials(public_only=False)]
@@ -178,7 +177,6 @@ async def calculate(request: Request) -> HTMLResponse:
         }
         result = analyze_laminate(payload)
         display_layers = build_visible_sandwich_layers(payload)
-        sandwich_trace = compute_visible_sandwich_trace(payload)
     except (ValidationError, ValueError) as exc:
         errors = [str(exc)]
 
@@ -193,7 +191,6 @@ async def calculate(request: Request) -> HTMLResponse:
             "form_state": form_state,
             "result": result,
             "display_layers": display_layers,
-            "sandwich_trace": sandwich_trace,
             "material_palette": build_material_palette(result.generated_layers if result else None),
             "errors": errors,
         },

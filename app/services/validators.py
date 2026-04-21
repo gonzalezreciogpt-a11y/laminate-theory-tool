@@ -17,8 +17,8 @@ def validate_request(request: LaminateRequestModel) -> list[str]:
     base_catalog = load_material_catalog()
     warnings: list[str] = []
 
-    if request.compatibility_mode != "legacy":
-        raise ValueError("Esta primera version solo admite el modo de compatibilidad legado.")
+    if request.compatibility_mode not in {"legacy", "physical"}:
+        raise ValueError("Modo de calculo desconocido.")
 
     custom_material_ids: set[str] = set()
     for material in request.custom_materials:
@@ -72,14 +72,20 @@ def validate_request(request: LaminateRequestModel) -> list[str]:
                     f"La capa {index} usa el material twill '{layer.material_id}' con una orientacion no valida. Las fibras twill solo admiten +-45 o +-90 grados."
                 )
         if layer.material_id == "Dummy":
+            if request.compatibility_mode != "legacy":
+                raise ValueError("La Dummy solo se admite en modo legado.")
             seen_dummy = True
 
-    if seen_dummy:
+    if request.compatibility_mode == "legacy" and seen_dummy:
         warnings.append(
             "La peticion incluye la Dummy legada de forma explicita. Utilizala solo para estudios de compatibilidad."
         )
 
-    if request.insert_dummy_layer_for_odd_compatibility and len(request.layers) % 2 == 1:
+    if (
+        request.compatibility_mode == "legacy"
+        and request.insert_dummy_layer_for_odd_compatibility
+        and len(request.layers) % 2 == 1
+    ):
         warnings.append(
             "Se ha detectado un numero impar de capas. Se anadira una Dummy interna para mantener la compatibilidad legado."
         )

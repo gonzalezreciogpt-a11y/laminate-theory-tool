@@ -62,13 +62,13 @@ def build_request_from_form(form: FormData) -> LaminateRequestModel:
 
     return LaminateRequestModel(
         layers=layers,
-        is_symmetric=form.get("is_symmetric") == "on",
+        is_symmetric=True,
         core_material_id=core_material_id,
         insert_dummy_layer_for_odd_compatibility=form.get(
             "insert_dummy_layer_for_odd_compatibility"
         )
         == "on",
-        compatibility_mode="legacy",
+        compatibility_mode="physical",
         custom_materials=[CustomMaterialModel(**material) for material in custom_materials_payload],
         three_point_bending=ThreePointBendingConfigModel(
             elastic_gradient=float(form.get("elastic_gradient", 2649.0)),

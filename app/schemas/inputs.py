@@ -43,7 +43,7 @@ class LaminateRequestModel(BaseModel):
     is_symmetric: bool = True
     core_material_id: str = "Honeycomb"
     insert_dummy_layer_for_odd_compatibility: bool = False
-    compatibility_mode: str = "legacy"
+    compatibility_mode: Literal["physical", "legacy"] = "physical"
     custom_materials: list[CustomMaterialModel] = Field(default_factory=list)
     three_point_bending: ThreePointBendingConfigModel = Field(
         default_factory=ThreePointBendingConfigModel

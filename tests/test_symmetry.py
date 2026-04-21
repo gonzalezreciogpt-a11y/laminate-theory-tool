@@ -1,7 +1,7 @@
 import numpy as np
 
 from app.schemas.inputs import LaminateRequestModel
-from app.services.legacy_compatibility import analyze_laminate
+from app.services.legacy_compatibility import analyze_laminate, analyze_laminate_legacy
 from app.services.sandwich_trace import build_visible_sandwich_layers, compute_visible_sandwich_trace
 
 
@@ -15,8 +15,9 @@ def test_symmetric_flag_mirrors_z_without_reordering_layers() -> None:
         ],
         is_symmetric=True,
         core_material_id="Honeycomb",
+        compatibility_mode="legacy",
     )
-    result = analyze_laminate(payload)
+    result = analyze_laminate_legacy(payload)
 
     assert [layer.material_id for layer in result.generated_layers] == ["RC416T", "UD", "RC416T", "UD"]
     assert result.trace.z_mm[0] == -result.trace.z_mm[3]
@@ -32,27 +33,25 @@ def test_nonsymmetric_flag_uses_direct_z_progression() -> None:
         ],
         is_symmetric=False,
         core_material_id="Honeycomb",
+        compatibility_mode="legacy",
     )
-    result = analyze_laminate(payload)
+    result = analyze_laminate_legacy(payload)
     assert result.trace.z_mm[-1] == -(result.trace.espesor_total_mm / 2.0)
 
 
-def test_visible_sandwich_trace_has_nearly_null_b_matrix_for_symmetric_sandwich() -> None:
+def test_physical_mode_has_nearly_null_b_matrix_for_symmetric_sandwich() -> None:
     payload = LaminateRequestModel(
         layers=[
             {"material_id": "RC416T", "theta_deg": 45.0},
             {"material_id": "UD", "theta_deg": 0.0},
             {"material_id": "RC416T", "theta_deg": 90.0},
         ],
-        is_symmetric=False,
+        is_symmetric=True,
         core_material_id="Honeycomb",
     )
 
-    legacy_result = analyze_laminate(payload)
-    sandwich_trace = compute_visible_sandwich_trace(payload)
-
-    assert not np.allclose(legacy_result.trace.b_matrix, np.zeros((3, 3)), atol=1e-6)
-    assert np.allclose(sandwich_trace.b_matrix, np.zeros((3, 3)), atol=1e-4)
+    result = analyze_laminate(payload)
+    assert np.allclose(result.trace.b_matrix, np.zeros((3, 3)), atol=1e-4)
 
 
 def test_visible_sandwich_layers_include_core_and_mirrored_bottom_skin() -> None:

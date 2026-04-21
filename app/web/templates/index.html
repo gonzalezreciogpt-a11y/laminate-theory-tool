@@ -93,13 +93,8 @@
         <div id="advanced-panel" class="advanced-panel hidden">
           <div class="advanced-copy">
             <p class="card-kicker">Avanzado</p>
-            <h3>Compatibilidad</h3>
+            <h3>Ensayo a tres puntos</h3>
           </div>
-
-          <label class="toggle-field advanced-toggle">
-            <span class="toggle-title">Dummy interna para compatibilidad</span>
-            <input type="checkbox" name="insert_dummy_layer_for_odd_compatibility" {% if form_state.insert_dummy_layer_for_odd_compatibility %}checked{% endif %}>
-          </label>
 
           <div class="advanced-grid">
             <label>
@@ -238,23 +233,13 @@
   </div>
 
   <div class="results-grid">
-    {% set summary = namespace(layer_count=0, core_thickness=0.0) %}
-    {% for layer in result.generated_layers %}
-    {% if layer.material_id != "Dummy" %}
-    {% set summary.layer_count = summary.layer_count + 1 %}
+    {% set summary = namespace(layer_count=form_state.layers|length, core_thickness=0.0) %}
+    {% for layer in display_layers %}
+    {% if layer.zone == "core" %}
+    {% set summary.core_thickness = layer.thickness_mm %}
     {% endif %}
     {% endfor %}
-    {% for material in core_materials %}
-    {% if material.id == form_state.core_material_id %}
-    {% set summary.core_thickness = material.thickness_mm %}
-    {% endif %}
-    {% endfor %}
-    {% for material in form_state.custom_materials %}
-    {% if material.id == form_state.core_material_id and material.material_category == "core" %}
-    {% set summary.core_thickness = material.thickness_mm %}
-    {% endif %}
-    {% endfor %}
-    {% set total_laminate_thickness_mm = sandwich_trace.total_thickness_mm if sandwich_trace else (result.trace.espesor_total_mm + summary.core_thickness) %}
+    {% set total_laminate_thickness_mm = result.trace.espesor_total_mm %}
 
     <article class="app-card result-card result-card-primary objective-card">
       <div class="card-head">
@@ -270,7 +255,7 @@
         </div>
         <div class="objective-item">
           <span>Espesor de fibra</span>
-          <strong>{{ result.trace.espesor_total_mm | fmt3 }} mm</strong>
+          <strong>{{ result.three_point_bending.th_fibra_mm | fmt3 }} mm</strong>
         </div>
         <div class="objective-item">
           <span>Espesor total</span>
@@ -295,28 +280,18 @@
           <div class="laminate-face-label">Cara superior</div>
           <div class="laminate-visual-frame">
             <div class="laminate-visual">
-              {% for layer in result.generated_layers %}
-              {% if layer.material_id != "Dummy" %}
+              {% for layer in display_layers %}
+              {% if layer.zone != "core" %}
               <div
                 class="laminate-segment"
-                title="{{ layer.material_name }} · {{ layer.theta_deg | fmt3 }} deg · {{ layer.thickness_mm | fmt3 }} mm"
+                title="{{ layer.material_name }} - {{ layer.theta_deg | fmt3 }} deg - {{ layer.thickness_mm | fmt3 }} mm"
                 style="--segment-share: {{ layer.thickness_mm }}; background: {{ material_palette[layer.material_id] }};"
               ></div>
-              {% endif %}
-              {% endfor %}
-              {% if summary.core_thickness > 0 %}
+              {% else %}
               <div
                 class="laminate-segment laminate-core-segment"
-                title="{{ form_state.core_material_id }} · {{ summary.core_thickness | fmt3 }} mm"
+                title="{{ form_state.core_material_id }} - {{ summary.core_thickness | fmt3 }} mm"
                 style="--segment-share: {{ summary.core_thickness }};"
-              ></div>
-              {% endif %}
-              {% for layer in result.generated_layers | reverse %}
-              {% if layer.material_id != "Dummy" %}
-              <div
-                class="laminate-segment"
-                title="{{ layer.material_name }} · {{ layer.theta_deg | fmt3 }} deg · {{ layer.thickness_mm | fmt3 }} mm"
-                style="--segment-share: {{ layer.thickness_mm }}; background: {{ material_palette[layer.material_id] }};"
               ></div>
               {% endif %}
               {% endfor %}
@@ -397,38 +372,19 @@
       <details class="details-panel">
         <summary>Ver detalles técnicos</summary>
         <div class="details-body">
-          {% if result.warnings %}
           <div class="details-block">
-            <h3>Avisos</h3>
-            <ul class="message-list">
-              {% for warning in result.warnings %}
-              <li>{{ warning }}</li>
-              {% endfor %}
-            </ul>
-          </div>
-          {% endif %}
-
-          <div class="details-block">
-            <h3>Variables avanzadas del ensayo</h3>
+            <h3>Variables del ensayo</h3>
             <div class="metric-grid metric-grid-compact">
               <div><span>EI teoría</span><strong>{{ result.three_point_bending.ei_theory | fmt3 }}</strong></div>
               <div><span>EI ensayo</span><strong>{{ result.three_point_bending.ei_ensayo | fmt3 }}</strong></div>
               <div><span>E fibra ensayo</span><strong>{{ result.three_point_bending.e_fibra_ensayo | fmt3 }}</strong></div>
-              <div><span>Valor central legado</span><strong>{{ result.three_point_bending.legacy_capa_central_value | fmt3 }}</strong></div>
+              <div><span>Espesor del core</span><strong>{{ result.three_point_bending.legacy_capa_central_value | fmt3 }} mm</strong></div>
             </div>
           </div>
 
           <div class="details-block">
-            <h3>Traza CLT del sandwich visible</h3>
-            <p class="trace-inline"><strong>z interfaces (mm)</strong> {{ sandwich_trace.z_interfaces_mm | fmt_nested }}</p>
-            <pre>A = {{ sandwich_trace.a_matrix | fmt_nested }}</pre>
-            <pre>B = {{ sandwich_trace.b_matrix | fmt_nested }}</pre>
-            <pre>D = {{ sandwich_trace.d_matrix | fmt_nested }}</pre>
-          </div>
-
-          <div class="details-block">
-            <h3>Traza legado MATLAB</h3>
-            <p class="trace-inline"><strong>z legado (mm)</strong> {{ result.trace.z_mm | fmt_nested }}</p>
+            <h3>Traza CLT del sandwich</h3>
+            <p class="trace-inline"><strong>z interfaces (mm)</strong> {{ result.trace.z_mm | fmt_nested }}</p>
             <pre>A = {{ result.trace.a_matrix | fmt_nested }}</pre>
             <pre>B = {{ result.trace.b_matrix | fmt_nested }}</pre>
             <pre>D = {{ result.trace.d_matrix | fmt_nested }}</pre>
@@ -442,10 +398,10 @@
   {
     "elastic_gradient_theory": {{ result.three_point_bending.elastic_gradient_theory | tojson }},
     "ei_theory": {{ result.three_point_bending.ei_theory | tojson }},
-    "fiber_thickness_mm": {{ result.trace.espesor_total_mm | tojson }},
+    "fiber_thickness_mm": {{ result.three_point_bending.th_fibra_mm | tojson }},
     "total_thickness_mm": {{ total_laminate_thickness_mm | tojson }},
     "core_material_id": {{ form_state.core_material_id | tojson }},
-    "is_symmetric": {{ form_state.is_symmetric | tojson }},
+    "is_symmetric": true,
     "visible_layers": {{ summary.layer_count | tojson }}
   }
 </script>
@@ -709,9 +665,9 @@
       material_id: row.querySelector('select[name="material_id"]').value,
       theta_deg: row.querySelector('select[name="theta_deg"]').value,
     })),
-    is_symmetric: false,
+    is_symmetric: true,
     core_material_id: coreSelect.value,
-    insert_dummy_layer_for_odd_compatibility: laminateForm.querySelector('input[name="insert_dummy_layer_for_odd_compatibility"]').checked,
+    insert_dummy_layer_for_odd_compatibility: false,
     elastic_gradient: laminateForm.querySelector('input[name="elastic_gradient"]').value,
     rigidez_rig: laminateForm.querySelector('input[name="rigidez_rig"]').value,
     span_m: laminateForm.querySelector('input[name="span_m"]').value,
@@ -753,7 +709,7 @@
       renderThetaOptions(row);
     });
 
-    laminateForm.querySelector('input[name="insert_dummy_layer_for_odd_compatibility"]').checked = Boolean(state.insert_dummy_layer_for_odd_compatibility);
+    
     coreSelect.value = state.core_material_id || coreSelect.value;
     laminateForm.querySelector('input[name="elastic_gradient"]').value = state.elastic_gradient ?? "";
     laminateForm.querySelector('input[name="rigidez_rig"]').value = state.rigidez_rig ?? "";

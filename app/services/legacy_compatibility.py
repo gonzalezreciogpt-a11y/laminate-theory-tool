@@ -14,11 +14,12 @@ from app.schemas.outputs import (
 from app.services.clt_core import compute_legacy_abd, compute_legacy_z_positions_mm
 from app.services.equivalent_properties import compute_equivalent_properties
 from app.services.laminate_builder import build_laminate
+from app.services.physical_laminate import analyze_laminate_physical
 from app.services.three_point_bending import compute_three_point_bending
 from app.services.validators import validate_request
 
 
-def analyze_laminate(request: LaminateRequestModel) -> LaminateAnalysisResponseModel:
+def analyze_laminate_legacy(request: LaminateRequestModel) -> LaminateAnalysisResponseModel:
     warnings = validate_request(request)
     definition = LaminateDefinition(
         layers=[
@@ -114,3 +115,9 @@ def analyze_laminate(request: LaminateRequestModel) -> LaminateAnalysisResponseM
         three_point_bending=ThreePointBendingResultModel(**bending),
         trace=trace,
     )
+
+
+def analyze_laminate(request: LaminateRequestModel) -> LaminateAnalysisResponseModel:
+    if request.compatibility_mode == "legacy":
+        return analyze_laminate_legacy(request)
+    return analyze_laminate_physical(request)

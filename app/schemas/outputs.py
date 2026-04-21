@@ -7,7 +7,7 @@ class GeneratedLayerModel(BaseModel):
     index: int
     material_id: str
     material_name: str
-    theta_deg: float
+    theta_deg: float | None
     thickness_mm: float
     source: str
 

@@ -21,6 +21,7 @@ def test_warns_when_dummy_is_explicit() -> None:
         layers=[{"material_id": "Dummy", "theta_deg": 0.0}],
         is_symmetric=True,
         core_material_id="Honeycomb",
+        compatibility_mode="legacy",
     )
     warnings = validate_request(payload)
     assert any("Dummy" in warning for warning in warnings)

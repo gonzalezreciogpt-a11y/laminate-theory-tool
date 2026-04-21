@@ -39,3 +39,36 @@ def compute_equivalent_properties(
         "g122_gpa": pa_to_gpa(float(g122)),
         "g12g_gpa": pa_to_gpa(float(g12g)),
     }
+
+
+def compute_equivalent_properties_physical(
+    a_matrix: np.ndarray,
+    d_matrix: np.ndarray,
+    total_thickness_mm: float,
+) -> dict[str, float | list[list[float]]]:
+    a1_matrix = a_matrix / total_thickness_mm
+    d1_matrix = (12.0 * d_matrix) / (total_thickness_mm**3)
+
+    compliance = np.linalg.inv(a1_matrix)
+
+    e11 = 1.0 / compliance[0, 0]
+    e22 = 1.0 / compliance[1, 1]
+    g122 = 1.0 / compliance[2, 2]
+    nu12 = -compliance[0, 1] / compliance[0, 0]
+    nu21 = -compliance[0, 1] / compliance[1, 1]
+    g12g = g122
+
+    return {
+        "a1_matrix": a1_matrix.tolist(),
+        "d1_matrix": d1_matrix.tolist(),
+        "e11_pa": float(e11),
+        "e22_pa": float(e22),
+        "g122_pa": float(g122),
+        "nu12": float(nu12),
+        "nu21": float(nu21),
+        "g12g_pa": float(g12g),
+        "e11_gpa": pa_to_gpa(float(e11)),
+        "e22_gpa": pa_to_gpa(float(e22)),
+        "g122_gpa": pa_to_gpa(float(g122)),
+        "g12g_gpa": pa_to_gpa(float(g12g)),
+    }

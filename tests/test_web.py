@@ -53,15 +53,13 @@ def test_api_calculate_returns_reference_shape() -> None:
     assert round(data["three_point_bending"]["ei_theory"], 6) == 4724.34448
 
 
-def test_form_post_matches_matlab_g12g_when_legacy_dummy_is_enabled() -> None:
+def test_form_post_uses_physical_sandwich_outputs() -> None:
     response = client.post(
         "/",
         data={
             "material_id": ["RC416T", "UD", "RC416T"],
             "theta_deg": ["45", "0", "90"],
-            "is_symmetric": "on",
             "core_material_id": "Honeycomb",
-            "insert_dummy_layer_for_odd_compatibility": "on",
             "elastic_gradient": "2649",
             "rigidez_rig": "14871",
             "span_m": "0.4",
@@ -71,13 +69,12 @@ def test_form_post_matches_matlab_g12g_when_legacy_dummy_is_enabled() -> None:
         },
     )
     assert response.status_code == 200
-    assert "33.076 GPa" in response.text
-    assert "Bloque experimental" not in response.text
+    assert "1.406 GPa" in response.text
     assert "Propiedades del laminado" in response.text
     assert "Apilado final" in response.text
     assert "22.320 mm" in response.text
-    assert "Traza CLT del sandwich visible" in response.text
-    assert "Traza legado MATLAB" in response.text
+    assert "Traza CLT del sandwich" in response.text
+    assert "Traza legado MATLAB" not in response.text
     assert response.text.count('class="laminate-segment') >= 7
 
 
@@ -216,13 +213,21 @@ def test_api_export_results_returns_dynamic_workbook() -> None:
                     ],
                     "is_symmetric": True,
                     "core_material_id": "Honeycomb",
-                    "insert_dummy_layer_for_odd_compatibility": True,
-                    "compatibility_mode": "legacy",
+                    "insert_dummy_layer_for_odd_compatibility": False,
+                    "compatibility_mode": "physical",
                     "custom_materials": [],
+                    "three_point_bending": {
+                        "elastic_gradient": 2649.0,
+                        "rigidez_rig": 14871.0,
+                        "span_m": 0.4,
+                        "span_mm": 400.0,
+                        "width_m": 0.275,
+                        "width_mm": 275.0,
+                    },
                 },
                 "summary": {
-                    "elastic_gradient_theory": 3543.25836,
-                    "ei_theory": 4724.34448,
+                    "elastic_gradient_theory": 3543.255011,
+                    "ei_theory": 4724.340015,
                     "fiber_thickness_mm": 1.16,
                     "total_thickness_mm": 22.32,
                     "core_material_id": "Honeycomb",
@@ -249,7 +254,7 @@ def test_api_export_results_returns_dynamic_workbook() -> None:
     assert worksheet["E30"].value == "Honeycomb"
     assert worksheet["G30"].value == 22.32
     assert worksheet["H30"].value == 1.16
-    assert worksheet["I30"].value == 3543.258
+    assert worksheet["I30"].value == 3543.255
     assert workbook["Portada"]["A1"].value == "MAD Formula Team"
     assert workbook["Portada"]["A3"].value == "Resultados de laminados"
     assert workbook["Resumen"]["A3"].value == "Comparativa global"
@@ -276,10 +281,10 @@ def test_api_export_results_recomputes_tampered_summary_from_form_state() -> Non
                         {"material_id": "UD", "theta_deg": 0.0},
                         {"material_id": "RC416T", "theta_deg": 90.0},
                     ],
-                    "is_symmetric": False,
+                    "is_symmetric": True,
                     "core_material_id": "Honeycomb",
-                    "insert_dummy_layer_for_odd_compatibility": True,
-                    "compatibility_mode": "legacy",
+                    "insert_dummy_layer_for_odd_compatibility": False,
+                    "compatibility_mode": "physical",
                     "custom_materials": [],
                     "three_point_bending": {
                         "elastic_gradient": 2649.0,
@@ -312,4 +317,4 @@ def test_api_export_results_recomputes_tampered_summary_from_form_state() -> Non
     assert worksheet["E30"].value == "Honeycomb"
     assert worksheet["G30"].value == 22.32
     assert worksheet["H30"].value == 1.16
-    assert worksheet["I30"].value == 3543.258
+    assert worksheet["I30"].value == 3543.255

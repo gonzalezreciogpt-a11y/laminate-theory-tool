@@ -274,18 +274,13 @@
     insert_dummy_layer_for_odd_compatibility: state.insert_dummy_layer_for_odd_compatibility,
   });
 
-  const calculateVisibleTotalThickness = (request, result) => {
-    const materialCatalog = buildMaterialCatalog();
-    const multiplier = request.is_symmetric ? 2 : 1;
-    const core = materialCatalog.find((material) => material.id === request.core_material_id);
-    return (Number(result.trace.espesor_total_mm || 0) * multiplier) + Number(core?.thickness_mm || 0);
-  };
+  const calculateVisibleTotalThickness = (request, result) => Number(result.trace?.espesor_total_mm || 0);
 
   const buildHistoryEntry = (batchEntry) => {
     const request = batchEntry.request;
     const result = batchEntry.result;
     const visibleLayers = Array.isArray(result.generated_layers)
-      ? result.generated_layers.filter((layer) => layer.material_id !== "Dummy").length
+      ? request.layers.length
       : request.layers.length;
     return {
       signature: buildSignature(request),
@@ -294,10 +289,10 @@
       summary: {
         elastic_gradient_theory: result.three_point_bending.elastic_gradient_theory,
         ei_theory: result.three_point_bending.ei_theory,
-        fiber_thickness_mm: result.trace.espesor_total_mm,
+        fiber_thickness_mm: result.three_point_bending.th_fibra_mm,
         total_thickness_mm: calculateVisibleTotalThickness(request, result),
         core_material_id: request.core_material_id,
-        is_symmetric: request.is_symmetric,
+        is_symmetric: true,
         visible_layers: visibleLayers,
       },
       result_data: result,
@@ -461,37 +456,15 @@
   };
 
   const buildVisualSegments = (entry) => {
-    const visibleLayers = entry.result_data.generated_layers
+    return entry.result_data.generated_layers
       .filter((layer) => layer.material_id !== "Dummy")
       .map((layer, index) => ({
-        key: `top-${index}`,
+        key: `segment-${index}`,
         material_id: layer.material_id,
         thickness_mm: Number(layer.thickness_mm || 0),
-        orientation_label: `${Number(layer.theta_deg).toFixed(0)} deg`,
-        is_core: false,
+        orientation_label: layer.theta_deg === null ? "" : `${Number(layer.theta_deg).toFixed(0)} deg`,
+        is_core: layer.theta_deg === null,
       }));
-
-    const mirrored = entry.form_state.is_symmetric
-      ? [...visibleLayers].reverse().map((layer, index) => ({
-          ...layer,
-          key: `bottom-${index}`,
-        }))
-      : [];
-
-    const materialCatalog = buildMaterialCatalog();
-    const core = materialCatalog.find((material) => material.id === entry.form_state.core_material_id);
-    const segments = [...visibleLayers];
-    if (core?.thickness_mm) {
-      segments.push({
-        key: "core",
-        material_id: entry.form_state.core_material_id,
-        thickness_mm: Number(core.thickness_mm),
-        orientation_label: "",
-        is_core: true,
-      });
-    }
-    segments.push(...mirrored);
-    return segments;
   };
 
   const renderBestVisual = (entry) => {
