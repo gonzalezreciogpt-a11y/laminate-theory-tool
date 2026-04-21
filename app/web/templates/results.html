@@ -54,7 +54,16 @@
   <div class="selection-toolbar-actions">
     <button type="button" class="secondary-button" id="select-visible-results">Seleccionar visibles</button>
     <button type="button" class="secondary-button" id="clear-selected-results">Limpiar selección</button>
-    <button type="button" class="ghost-button" id="delete-selected-results" disabled>Borrar seleccionados</button>
+    <button type="button" class="danger-button" id="delete-selected-results" disabled aria-label="Borrar selección">
+      <span class="danger-button-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" role="img" focusable="false">
+          <path d="M9 3h6l1 2h4v2H4V5h4l1-2Z" fill="currentColor"/>
+          <path d="M7 9h10l-.7 10.2A2 2 0 0 1 14.3 21H9.7a2 2 0 0 1-1.99-1.8L7 9Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M10 11.5v6M14 11.5v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span>Borrar selección</span>
+    </button>
     <button type="button" class="excel-export-button excel-export-button-compact" id="export-selected-results" disabled aria-label="Exportar selección a Excel">
       <span class="excel-export-icon" aria-hidden="true">
         <svg viewBox="0 0 64 64" role="img" focusable="false">
@@ -210,6 +219,7 @@
     resultsGroups.querySelectorAll(".history-card").forEach((card) => {
       const signature = decodeSignature(card.dataset.signature || "");
       card.classList.toggle("is-selected", selected.includes(signature));
+      card.setAttribute("aria-pressed", selected.includes(signature) ? "true" : "false");
     });
   };
 
@@ -300,9 +310,29 @@
   };
 
   resultsGroups.addEventListener("click", (event) => {
+    const card = event.target.closest(".history-card");
     const openButton = event.target.closest(".open-result-entry");
     const deleteButton = event.target.closest(".delete-result-entry");
     const history = loadHistory();
+
+    if (
+      selectionMode &&
+      card &&
+      !event.target.closest(".library-actions") &&
+      !event.target.closest(".history-compare-toggle") &&
+      !event.target.closest(".history-selection-toggle") &&
+      !event.target.closest("a") &&
+      !event.target.closest("button") &&
+      !event.target.closest("input")
+    ) {
+      const decodedSignature = decodeSignature(card.dataset.signature);
+      const selection = getSelectedSignatures().filter((signature) => signature !== decodedSignature);
+      if (!getSelectedSignatures().includes(decodedSignature)) {
+        selection.push(decodedSignature);
+      }
+      setSelectedSignatures(selection);
+      return;
+    }
 
     if (openButton) {
       const entry = history.find((item) => item.signature === decodeSignature(openButton.dataset.signature));
@@ -314,6 +344,9 @@
     }
 
     if (deleteButton) {
+      if (selectionMode) {
+        return;
+      }
       captureOpenGroups();
       const decodedSignature = decodeSignature(deleteButton.dataset.signature);
       const filtered = history.filter((item) => item.signature !== decodedSignature);
@@ -454,6 +487,7 @@
     if (!selectionMode) {
       setSelectedSignatures([]);
     } else {
+      captureOpenGroups();
       updateSelectionUI();
     }
   });
