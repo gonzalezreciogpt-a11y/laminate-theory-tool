@@ -413,6 +413,7 @@
 
   clearButton.addEventListener("click", () => {
     captureOpenGroups();
+    selectionMode = false;
     localStorage.removeItem(HISTORY_KEY);
     localStorage.removeItem(LAST_ANALYSIS_KEY);
     localStorage.removeItem(COMPARE_SELECTION_KEY);
@@ -531,6 +532,7 @@
     const filtered = loadHistory().filter((entry) => !selected.has(entry.signature));
     saveHistory(filtered);
     saveCompareSelection(loadCompareSelection().filter((signature) => !selected.has(signature)));
+    selectionMode = false;
     setSelectedSignatures([]);
     if (!filtered.length) {
       localStorage.removeItem(LAST_ANALYSIS_KEY);
