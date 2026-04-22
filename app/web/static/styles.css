@@ -295,9 +295,6 @@ summary {
   gap: 0.85rem;
   width: max-content;
   max-width: 100%;
-  overflow-x: auto;
-  padding-bottom: 0.12rem;
-  scrollbar-width: thin;
 }
 
 .materials-hero-actions > * {
@@ -1768,6 +1765,25 @@ pre {
 
   .hero-actions {
     grid-template-columns: 1fr;
+  }
+
+  .materials-hero-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+  }
+
+  .materials-hero-actions > * {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .materials-transfer-button,
+  .materials-hero-actions .primary-link {
+    width: 100%;
+    min-width: 0;
   }
 
   .hero-actions-wide,
