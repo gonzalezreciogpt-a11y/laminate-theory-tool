@@ -288,14 +288,19 @@ summary {
   margin-top: 1.2rem;
 }
 
-.hero-actions-materials {
+.materials-hero-actions {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
   gap: 0.85rem;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 0.12rem;
+  scrollbar-width: thin;
 }
 
-.hero-actions-materials > * {
+.materials-hero-actions > * {
   flex: 0 0 auto;
 }
 
