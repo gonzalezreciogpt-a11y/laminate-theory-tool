@@ -288,6 +288,11 @@ summary {
   margin-top: 1.2rem;
 }
 
+.hero-actions-materials {
+  grid-template-columns: repeat(3, max-content);
+  align-items: center;
+}
+
 .hero-actions-wide {
   display: flex;
   flex-wrap: wrap;
