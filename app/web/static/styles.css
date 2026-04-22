@@ -343,78 +343,31 @@ summary {
   box-shadow: 0 16px 28px rgba(31, 122, 69, 0.14);
 }
 
-.catalog-transfer-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.72rem;
-  min-width: 228px;
-  min-height: 52px;
-  padding: 0.68rem 0.95rem 0.68rem 0.76rem;
-  border-radius: 999px;
-  border: 1px solid rgba(21, 52, 95, 0.14);
-  background: #eff4fb;
-  color: var(--accent-strong);
-  box-shadow: 0 12px 26px rgba(21, 52, 95, 0.08);
+.catalog-action-button {
+  gap: 0.55rem;
+  min-height: 46px;
+  padding: 0.75rem 1rem;
 }
 
-.catalog-transfer-button:hover {
-  transform: translateY(-1px);
-}
-
-.catalog-transfer-button-import {
-  background: linear-gradient(135deg, #eef4fb 0%, #dfeaf9 100%);
-}
-
-.catalog-transfer-button-export {
+.catalog-action-button-export {
   background: linear-gradient(135deg, #f2f8f3 0%, #deefe2 100%);
   border-color: rgba(31, 122, 69, 0.18);
   color: #155c33;
-  box-shadow: 0 12px 26px rgba(31, 122, 69, 0.12);
 }
 
-.catalog-transfer-icon {
+.catalog-action-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: inset 0 0 0 1px rgba(21, 52, 95, 0.08);
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
 }
 
-.catalog-transfer-button-export .catalog-transfer-icon {
-  box-shadow: inset 0 0 0 1px rgba(31, 122, 69, 0.08);
-}
-
-.catalog-transfer-icon svg {
+.catalog-action-icon svg {
   width: 16px;
   height: 16px;
   display: block;
-}
-
-.catalog-transfer-copy {
-  display: grid;
-  gap: 0.05rem;
-  text-align: left;
-}
-
-.catalog-transfer-copy strong {
-  font-family: var(--font-heading);
-  font-size: 0.9rem;
-  font-weight: 800;
-  color: currentColor;
-}
-
-.catalog-transfer-copy small {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: inherit;
-  opacity: 0.7;
 }
 
 .excel-export-button:hover {
