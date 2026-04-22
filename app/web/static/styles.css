@@ -343,31 +343,31 @@ summary {
   box-shadow: 0 16px 28px rgba(31, 122, 69, 0.14);
 }
 
-.catalog-action-button {
-  gap: 0.55rem;
-  min-height: 46px;
-  padding: 0.75rem 1rem;
+.materials-transfer-button {
+  min-width: 224px;
 }
 
-.catalog-action-button-export {
-  background: linear-gradient(135deg, #f2f8f3 0%, #deefe2 100%);
-  border-color: rgba(31, 122, 69, 0.18);
-  color: #155c33;
+.materials-transfer-button-import {
+  border-color: rgba(21, 52, 95, 0.18);
+  background: linear-gradient(135deg, #eef4fb 0%, #dfeaf9 100%);
+  color: var(--accent-strong);
+  box-shadow: 0 16px 28px rgba(21, 52, 95, 0.14);
 }
 
-.catalog-action-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
+.materials-transfer-button-import:hover {
+  box-shadow: 0 18px 34px rgba(21, 52, 95, 0.18);
 }
 
-.catalog-action-icon svg {
-  width: 16px;
-  height: 16px;
-  display: block;
+.materials-transfer-button-import .excel-export-icon {
+  box-shadow: inset 0 0 0 1px rgba(21, 52, 95, 0.08);
+}
+
+.materials-transfer-button-import .excel-export-copy strong {
+  color: var(--accent-strong);
+}
+
+.materials-transfer-button-import .excel-export-copy small {
+  color: #45689a;
 }
 
 .excel-export-button:hover {

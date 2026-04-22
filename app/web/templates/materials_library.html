@@ -9,25 +9,35 @@
     </p>
     <div class="hero-actions">
       <a class="primary-link" href="/">Volver a la calculadora</a>
-      <button type="button" class="secondary-button catalog-action-button" id="import-materials" aria-label="Importar materiales">
-        <span class="catalog-action-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" role="img" focusable="false">
-            <path d="M12 3v10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
-            <path d="M8.5 10.5 12 14l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M5 16.5h14v1.5a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3v-1.5Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+      <button type="button" class="excel-export-button materials-transfer-button materials-transfer-button-import" id="import-materials" aria-label="Importar materiales">
+        <span class="excel-export-icon" aria-hidden="true">
+          <svg viewBox="0 0 64 64" role="img" focusable="false">
+            <rect x="8" y="10" width="48" height="44" rx="10" fill="#ffffff"/>
+            <path d="M20 42h24" fill="none" stroke="#4d79b3" stroke-width="3.2" stroke-linecap="round"/>
+            <path d="M32 16v20" fill="none" stroke="#15345f" stroke-width="3.4" stroke-linecap="round"/>
+            <path d="m24.5 29.5 7.5 7.5 7.5-7.5" fill="none" stroke="#15345f" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M17 39.5h30v4.5a6 6 0 0 1-6 6H23a6 6 0 0 1-6-6v-4.5Z" fill="none" stroke="#4d79b3" stroke-width="3.2" stroke-linejoin="round"/>
           </svg>
         </span>
-        <span>Importar materiales</span>
+        <span class="excel-export-copy">
+          <strong>Importar materiales</strong>
+          <small>Cargar JSON</small>
+        </span>
       </button>
-      <button type="button" class="secondary-button catalog-action-button catalog-action-button-export" id="export-materials" aria-label="Exportar materiales">
-        <span class="catalog-action-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" role="img" focusable="false">
-            <path d="M12 21V11" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
-            <path d="m15.5 13.5-3.5-3.5-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M5 7.5h14V6a3 3 0 0 0-3-3H8A3 3 0 0 0 5 6v1.5Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>
+      <button type="button" class="excel-export-button materials-transfer-button materials-transfer-button-export" id="export-materials" aria-label="Exportar materiales">
+        <span class="excel-export-icon" aria-hidden="true">
+          <svg viewBox="0 0 64 64" role="img" focusable="false">
+            <rect x="8" y="10" width="48" height="44" rx="10" fill="#ffffff"/>
+            <path d="M20 22h24" fill="none" stroke="#77b88f" stroke-width="3.2" stroke-linecap="round"/>
+            <path d="M32 48V28" fill="none" stroke="#1f7a45" stroke-width="3.4" stroke-linecap="round"/>
+            <path d="m39.5 34.5-7.5-7.5-7.5 7.5" fill="none" stroke="#1f7a45" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M17 14h30v4.5a6 6 0 0 1-6 6H23a6 6 0 0 1-6-6V14Z" fill="none" stroke="#77b88f" stroke-width="3.2" stroke-linejoin="round"/>
           </svg>
         </span>
-        <span>Exportar materiales</span>
+        <span class="excel-export-copy">
+          <strong>Exportar materiales</strong>
+          <small>Descargar JSON</small>
+        </span>
       </button>
       <input type="file" id="import-materials-file" accept=".json,application/json" hidden>
     </div>
