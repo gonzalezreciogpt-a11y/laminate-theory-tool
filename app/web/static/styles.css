@@ -347,10 +347,10 @@ summary {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 0.82rem;
+  gap: 0.72rem;
   min-width: 228px;
   min-height: 52px;
-  padding: 0.7rem 1rem 0.7rem 0.8rem;
+  padding: 0.68rem 0.95rem 0.68rem 0.76rem;
   border-radius: 999px;
   border: 1px solid rgba(21, 52, 95, 0.14);
   background: #eff4fb;
@@ -377,10 +377,10 @@ summary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
-  border-radius: 12px;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.9);
   box-shadow: inset 0 0 0 1px rgba(21, 52, 95, 0.08);
 }
@@ -390,8 +390,8 @@ summary {
 }
 
 .catalog-transfer-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   display: block;
 }
 
@@ -403,13 +403,13 @@ summary {
 
 .catalog-transfer-copy strong {
   font-family: var(--font-heading);
-  font-size: 0.94rem;
+  font-size: 0.9rem;
   font-weight: 800;
   color: currentColor;
 }
 
 .catalog-transfer-copy small {
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
