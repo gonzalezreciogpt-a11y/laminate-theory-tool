@@ -16,6 +16,32 @@
   </div>
 </section>
 
+<article class="feedback-card" id="import-status" hidden>
+  <p class="eyebrow">Importación</p>
+  <h2 id="import-status-title">Biblioteca actualizada</h2>
+  <p id="import-status-message">La biblioteca se ha importado correctamente.</p>
+</article>
+
+<article class="app-card import-preview-card" id="import-preview-card" hidden>
+  <div class="card-head">
+    <div>
+      <p class="card-kicker">Importación</p>
+      <h2>Revisa la biblioteca detectada</h2>
+    </div>
+    <button type="button" class="ghost-button" id="cancel-import-preview">Cancelar</button>
+  </div>
+  <p class="import-preview-copy" id="import-preview-copy">
+    Comprueba los materiales antes de guardarlos en este navegador.
+  </p>
+  <div class="metric-grid metric-grid-compact" id="import-preview-metrics"></div>
+  <div class="results-grid import-preview-grid" id="import-preview-groups"></div>
+  <div class="submit-row import-preview-actions">
+    <button type="button" class="primary-button" id="apply-import-replace">Reemplazar mi biblioteca</button>
+    <button type="button" class="secondary-button secondary-button-strong" id="apply-import-merge">Fusionar con mi biblioteca</button>
+    <p>Elige reemplazar para copiar exactamente la biblioteca importada.</p>
+  </div>
+</article>
+
 <section class="workspace-section">
   <div class="workspace-grid">
     <section class="app-card form-card">
@@ -217,32 +243,6 @@
     </article>
   </div>
 </section>
-
-<article class="feedback-card" id="import-status" hidden>
-  <p class="eyebrow">Importación</p>
-  <h2 id="import-status-title">Biblioteca actualizada</h2>
-  <p id="import-status-message">La biblioteca se ha importado correctamente.</p>
-</article>
-
-<article class="app-card import-preview-card" id="import-preview-card" hidden>
-  <div class="card-head">
-    <div>
-      <p class="card-kicker">Importación</p>
-      <h2>Revisa la biblioteca detectada</h2>
-    </div>
-    <button type="button" class="ghost-button" id="cancel-import-preview">Cancelar</button>
-  </div>
-  <p class="import-preview-copy" id="import-preview-copy">
-    Comprueba los materiales antes de guardarlos en este navegador.
-  </p>
-  <div class="metric-grid metric-grid-compact" id="import-preview-metrics"></div>
-  <div class="results-grid import-preview-grid" id="import-preview-groups"></div>
-  <div class="submit-row import-preview-actions">
-    <button type="button" class="primary-button" id="apply-import-replace">Reemplazar mi biblioteca</button>
-    <button type="button" class="secondary-button secondary-button-strong" id="apply-import-merge">Fusionar con mi biblioteca</button>
-    <p>Elige reemplazar para copiar exactamente la biblioteca importada.</p>
-  </div>
-</article>
 
 <script id="base-materials-data" type="application/json">{{ base_materials_data | tojson }}</script>
 <script src="/static/materials-catalog.js"></script>
