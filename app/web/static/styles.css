@@ -289,8 +289,14 @@ summary {
 }
 
 .hero-actions-materials {
-  grid-template-columns: repeat(3, max-content);
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
+  gap: 0.85rem;
+}
+
+.hero-actions-materials > * {
+  flex: 0 0 auto;
 }
 
 .hero-actions-wide {
@@ -349,7 +355,7 @@ summary {
 }
 
 .materials-transfer-button {
-  min-width: 224px;
+  min-width: 208px;
 }
 
 .materials-transfer-button-import {
