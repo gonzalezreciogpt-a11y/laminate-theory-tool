@@ -132,6 +132,11 @@ def test_materials_library_page_renders() -> None:
     assert "Biblioteca de materiales." in response.text
     assert "Catálogo del proyecto" in response.text
     assert "MD Balsa Wood" in response.text
+    assert "Importar materiales" in response.text
+    assert 'id="import-materials-file"' in response.text
+    assert "/static/materials-catalog.js" in response.text
+    assert "Reemplazar mi biblioteca" in response.text
+    assert "Fusionar con mi biblioteca" in response.text
 
 
 def test_tutorial_page_renders() -> None:

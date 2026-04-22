@@ -143,6 +143,7 @@
 </section>
 
 <script id="all-materials-data" type="application/json">{{ all_materials_data | tojson }}</script>
+<script src="/static/materials-catalog.js"></script>
 <script>
   const LAST_ANALYSIS_KEY = "laminate_tool_last_analysis_v1";
   const HISTORY_KEY = "laminate_tool_history_v1";
@@ -187,20 +188,7 @@
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
   const formatNumber = (value, suffix = "") => `${Number(value || 0).toFixed(3)}${suffix}`;
 
-  const loadCustomMaterials = () => {
-    try {
-      const raw = localStorage.getItem(CUSTOM_MATERIALS_KEY);
-      return raw
-        ? JSON.parse(raw).map((material) => ({
-            fiber_family:
-              material.fiber_family ?? ((material.material_category || "fiber") === "fiber" ? "twill" : null),
-            ...material,
-          }))
-        : [];
-    } catch {
-      return [];
-    }
-  };
+  const loadCustomMaterials = () => window.LaminateMaterialCatalog.loadStoredMaterials();
 
   const loadBaseEntry = () => {
     try {

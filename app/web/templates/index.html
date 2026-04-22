@@ -450,6 +450,7 @@
 <script id="base-materials-data" type="application/json">{{ base_materials_data | tojson }}</script>
 <script id="all-materials-data" type="application/json">{{ all_materials_data | tojson }}</script>
 <div id="restored-results-container"></div>
+<script src="/static/materials-catalog.js"></script>
 
 <template id="layer-template">
   <div class="layer-row">
@@ -539,19 +540,7 @@
     });
   };
 
-  const loadCustomMaterials = () => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw
-        ? JSON.parse(raw).map((material) => ({
-            material_category: "fiber",
-            ...material,
-          }))
-        : [];
-    } catch {
-      return [];
-    }
-  };
+  const loadCustomMaterials = () => window.LaminateMaterialCatalog.loadStoredMaterials();
 
   const withFiberFamilyDefaults = (materials) =>
     materials.map((material) => ({

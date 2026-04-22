@@ -211,6 +211,7 @@ async def materials_library(request: Request) -> HTMLResponse:
         request,
         "materials_library.html",
         {
+            "base_materials_data": base_materials,
             "base_twill_materials": [
                 material
                 for material in base_materials

@@ -9,7 +9,9 @@
     </p>
     <div class="hero-actions">
       <a class="primary-link" href="/">Volver a la calculadora</a>
+      <button type="button" class="secondary-button" id="import-materials">Importar materiales</button>
       <button type="button" class="secondary-button" id="export-materials">Exportar mis materiales</button>
+      <input type="file" id="import-materials-file" accept=".json,application/json" hidden>
     </div>
   </div>
 </section>
@@ -216,14 +218,55 @@
   </div>
 </section>
 
+<article class="feedback-card" id="import-status" hidden>
+  <p class="eyebrow">Importación</p>
+  <h2 id="import-status-title">Biblioteca actualizada</h2>
+  <p id="import-status-message">La biblioteca se ha importado correctamente.</p>
+</article>
+
+<article class="app-card import-preview-card" id="import-preview-card" hidden>
+  <div class="card-head">
+    <div>
+      <p class="card-kicker">Importación</p>
+      <h2>Revisa la biblioteca detectada</h2>
+    </div>
+    <button type="button" class="ghost-button" id="cancel-import-preview">Cancelar</button>
+  </div>
+  <p class="import-preview-copy" id="import-preview-copy">
+    Comprueba los materiales antes de guardarlos en este navegador.
+  </p>
+  <div class="metric-grid metric-grid-compact" id="import-preview-metrics"></div>
+  <div class="results-grid import-preview-grid" id="import-preview-groups"></div>
+  <div class="submit-row import-preview-actions">
+    <button type="button" class="primary-button" id="apply-import-replace">Reemplazar mi biblioteca</button>
+    <button type="button" class="secondary-button secondary-button-strong" id="apply-import-merge">Fusionar con mi biblioteca</button>
+    <p>Elige reemplazar para copiar exactamente la biblioteca importada.</p>
+  </div>
+</article>
+
+<script id="base-materials-data" type="application/json">{{ base_materials_data | tojson }}</script>
+<script src="/static/materials-catalog.js"></script>
 <script>
-  const STORAGE_KEY = "laminate_tool_custom_materials_v1";
-  const LAST_ANALYSIS_KEY = "laminate_tool_last_analysis_v1";
+  const catalogUtils = window.LaminateMaterialCatalog;
   const materialForm = document.getElementById("material-form");
   const libraryContainer = document.getElementById("library-custom-materials");
   const emptyState = document.getElementById("library-empty-state");
   const exportButton = document.getElementById("export-materials");
+  const importButton = document.getElementById("import-materials");
+  const importFileInput = document.getElementById("import-materials-file");
+  const importStatus = document.getElementById("import-status");
+  const importStatusTitle = document.getElementById("import-status-title");
+  const importStatusMessage = document.getElementById("import-status-message");
+  const importPreviewCard = document.getElementById("import-preview-card");
+  const importPreviewCopy = document.getElementById("import-preview-copy");
+  const importPreviewMetrics = document.getElementById("import-preview-metrics");
+  const importPreviewGroups = document.getElementById("import-preview-groups");
+  const cancelImportPreviewButton = document.getElementById("cancel-import-preview");
+  const applyImportReplaceButton = document.getElementById("apply-import-replace");
+  const applyImportMergeButton = document.getElementById("apply-import-merge");
   const fiberFamilyField = document.getElementById("fiber-family-field");
+  const baseMaterials = JSON.parse(document.getElementById("base-materials-data").textContent);
+  const baseMaterialIds = baseMaterials.map((material) => material.id);
 
   const fieldMap = {
     id: document.getElementById("material-id"),
@@ -250,60 +293,121 @@
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#39;");
 
-  const loadMaterials = () => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw
-        ? JSON.parse(raw).map((material) => ({
-            ...material,
-            material_category: material.material_category || "fiber",
-            fiber_family: material.fiber_family ?? ((material.material_category || "fiber") === "fiber" ? "twill" : null),
-          }))
-        : [];
-    } catch {
-      return [];
-    }
-  };
-
-  const saveMaterials = (materials) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(materials));
-  };
-  const analysisReferencesMaterial = (entry, materialId) => {
-    const formState = entry?.form_state;
-    if (!formState || !materialId) {
-      return false;
-    }
-    const topReferences = (formState.layers || []).some((layer) => layer?.material_id === materialId);
-    const bottomReferences = (formState.bottom_layers || []).some((layer) => layer?.material_id === materialId);
-    const coreReference = formState.core_material_id === materialId;
-    return topReferences || bottomReferences || coreReference;
-  };
-  const pruneLastAnalysisForDeletedMaterial = (materialId) => {
-    try {
-      const raw = localStorage.getItem(LAST_ANALYSIS_KEY);
-      if (!raw) {
-        return;
-      }
-      const entry = JSON.parse(raw);
-      if (analysisReferencesMaterial(entry, materialId)) {
-        localStorage.removeItem(LAST_ANALYSIS_KEY);
-        return;
-      }
-      if (!entry?.form_state) {
-        return;
-      }
-      entry.form_state.custom_materials = (entry.form_state.custom_materials || []).filter(
-        (material) => material?.id !== materialId
-      );
-      localStorage.setItem(LAST_ANALYSIS_KEY, JSON.stringify(entry));
-    } catch {
-      localStorage.removeItem(LAST_ANALYSIS_KEY);
-    }
-  };
-
   const reservedIds = new Set(["Dummy"]);
-  let customMaterials = loadMaterials();
+  let customMaterials = catalogUtils.loadStoredMaterials();
   let editingMaterialId = null;
+  let pendingImport = null;
+
+  const syncCatalogPersistence = () => {
+    catalogUtils.saveStoredMaterials(customMaterials);
+    catalogUtils.reconcileLastAnalysis({
+      currentMaterials: customMaterials,
+      baseMaterialIds,
+    });
+  };
+
+  const clearPendingImport = () => {
+    pendingImport = null;
+    importPreviewCard.hidden = true;
+    importFileInput.value = "";
+  };
+
+  const showImportStatus = (title, message, { danger = false } = {}) => {
+    importStatus.hidden = false;
+    importStatusTitle.textContent = title;
+    importStatusMessage.textContent = message;
+    importStatus.classList.toggle("feedback-card-danger", danger);
+    importStatus.classList.toggle("feedback-card-success", !danger);
+  };
+
+  const hideImportStatus = () => {
+    importStatus.hidden = true;
+    importStatus.classList.remove("feedback-card-danger", "feedback-card-success");
+  };
+
+  const buildPreviewGroup = (title, materials, emptyMessage) => `
+    <article class="app-card import-preview-group">
+      <div class="card-head">
+        <div>
+          <p class="card-kicker">Importación</p>
+          <h3>${escapeHtml(title)}</h3>
+        </div>
+      </div>
+      ${
+        materials.length
+          ? `<div class="import-preview-list">${materials
+              .map(
+                (material) => `
+                  <div class="import-preview-item">
+                    <strong>${escapeHtml(material.name)}</strong>
+                    <span>${escapeHtml(material.id)}</span>
+                  </div>
+                `
+              )
+              .join("")}</div>`
+          : `<p class="import-preview-empty">${escapeHtml(emptyMessage)}</p>`
+      }
+    </article>
+  `;
+
+  const renderImportPreview = () => {
+    if (!pendingImport) {
+      clearPendingImport();
+      return;
+    }
+
+    const { importMeta, materials, analysis } = pendingImport;
+    importPreviewCopy.textContent =
+      importMeta.version === 0
+        ? "Archivo legacy detectado. Se normalizará al formato actual al guardarlo."
+        : "Archivo compatible detectado. Revisa los materiales antes de importarlos.";
+    importPreviewMetrics.innerHTML = `
+      <div>
+        <span>Materiales válidos</span>
+        <strong>${materials.length}</strong>
+      </div>
+      <div>
+        <span>Materiales nuevos</span>
+        <strong>${analysis.newMaterials.length}</strong>
+      </div>
+      <div>
+        <span>Conflictos locales</span>
+        <strong>${analysis.customConflicts.length}</strong>
+      </div>
+      <div>
+        <span>Overrides base</span>
+        <strong>${analysis.baseOverrides.length}</strong>
+      </div>
+    `;
+    importPreviewGroups.innerHTML = `
+      ${buildPreviewGroup("Materiales nuevos", analysis.newMaterials, "No hay materiales completamente nuevos.")}
+      ${buildPreviewGroup("Conflictos con tu biblioteca", analysis.customConflicts, "No hay conflictos con tus materiales actuales.")}
+      ${buildPreviewGroup("Overrides sobre materiales base", analysis.baseOverrides, "No se sobrescribe ningún material base.")}
+    `;
+    importPreviewCard.hidden = false;
+  };
+
+  const applyImportedMaterials = (mode) => {
+    if (!pendingImport) {
+      return;
+    }
+
+    customMaterials =
+      mode === "replace"
+        ? catalogUtils.sortMaterialsByName(pendingImport.materials)
+        : catalogUtils.mergeMaterials(customMaterials, pendingImport.materials);
+    syncCatalogPersistence();
+    renderCustomMaterials();
+    clearPendingImport();
+    clearForm();
+    hideImportStatus();
+    const replacedCount = pendingImport.analysis.customConflicts.length + pendingImport.analysis.baseOverrides.length;
+    const importSummary =
+      mode === "replace"
+        ? `Se han importado ${customMaterials.length} materiales y tu biblioteca personalizada ha sido reemplazada.`
+        : `Se han importado ${pendingImport.materials.length} materiales: ${pendingImport.analysis.newMaterials.length} nuevos y ${replacedCount} actualizados.`;
+    showImportStatus("Biblioteca actualizada", importSummary);
+  };
 
   const syncFiberFamilyVisibility = () => {
     const isFiber = fieldMap.material_category.value === "fiber";
@@ -423,10 +527,12 @@
 
     customMaterials = customMaterials.filter((material) => material.id !== editingMaterialId);
     customMaterials.push(payload);
-    customMaterials.sort((a, b) => a.name.localeCompare(b.name));
-    saveMaterials(customMaterials);
+    customMaterials = catalogUtils.sortMaterialsByName(customMaterials);
+    syncCatalogPersistence();
     renderCustomMaterials();
     clearForm();
+    clearPendingImport();
+    hideImportStatus();
   });
 
   libraryContainer.addEventListener("click", (event) => {
@@ -441,14 +547,14 @@
     }
 
     if (deleteButton) {
-      const deletedMaterialId = deleteButton.dataset.id;
-      customMaterials = customMaterials.filter((item) => item.id !== deletedMaterialId);
-      saveMaterials(customMaterials);
-      pruneLastAnalysisForDeletedMaterial(deletedMaterialId);
+      customMaterials = customMaterials.filter((item) => item.id !== deleteButton.dataset.id);
+      syncCatalogPersistence();
       renderCustomMaterials();
-      if (editingMaterialId === deletedMaterialId) {
+      if (editingMaterialId === deleteButton.dataset.id) {
         clearForm();
       }
+      clearPendingImport();
+      hideImportStatus();
     }
   });
 
@@ -469,13 +575,60 @@
   fieldMap.material_category.addEventListener("change", syncFiberFamilyVisibility);
 
   exportButton.addEventListener("click", () => {
-    const blob = new Blob([JSON.stringify(customMaterials, null, 2)], { type: "application/json" });
+    const blob = new Blob([catalogUtils.buildExportPayload(customMaterials)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "custom-material-library.json";
+    anchor.download = "laminate-tool-material-library.json";
     anchor.click();
     URL.revokeObjectURL(url);
+  });
+
+  importButton.addEventListener("click", () => {
+    importFileInput.click();
+  });
+
+  importFileInput.addEventListener("change", async () => {
+    hideImportStatus();
+    const [file] = importFileInput.files || [];
+    if (!file) {
+      return;
+    }
+
+    try {
+      const parsedImport = catalogUtils.parseImportPayload(await file.text());
+      if (!parsedImport.materials.length) {
+        throw new Error("El archivo no contiene materiales importables.");
+      }
+      pendingImport = {
+        ...parsedImport,
+        analysis: catalogUtils.analyzeImport({
+          currentMaterials: customMaterials,
+          importedMaterials: parsedImport.materials,
+          baseMaterialIds,
+        }),
+      };
+      renderImportPreview();
+    } catch (error) {
+      clearPendingImport();
+      showImportStatus(
+        "No se ha podido importar la biblioteca",
+        error instanceof Error ? error.message : "El archivo no contiene una biblioteca de materiales compatible.",
+        { danger: true }
+      );
+    }
+  });
+
+  cancelImportPreviewButton.addEventListener("click", () => {
+    clearPendingImport();
+  });
+
+  applyImportReplaceButton.addEventListener("click", () => {
+    applyImportedMaterials("replace");
+  });
+
+  applyImportMergeButton.addEventListener("click", () => {
+    applyImportedMaterials("merge");
   });
 
   renderCustomMaterials();
