@@ -45,14 +45,14 @@
           <div class="shuffle-control-panel">
             <span>Orientaciones a probar</span>
             <div class="shuffle-preset-row">
-              <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="classic">0/&plusmn;45/&plusmn;90</button>
+              <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="classic">&plusmn;45/&plusmn;90</button>
               <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="15">Cada 15&deg;</button>
               <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="all">Cada 5&deg;</button>
               <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="clear">Limpiar</button>
             </div>
             <details class="shuffle-angle-details">
               <summary>
-                <span id="shuffle-angle-summary">3 orientaciones seleccionadas</span>
+                <span id="shuffle-angle-summary">2 orientaciones seleccionadas</span>
                 <small>Ajustar manualmente</small>
               </summary>
               <div class="sweep-core-options shuffle-angle-grid" id="shuffle-angle-checklist"></div>
@@ -295,7 +295,7 @@
       : [...(state.layers || []), ...(state.bottom_layers || [])];
 
   const renderAngleChecklist = () => {
-    const classic = new Set([0, 45, 90]);
+    const classic = new Set([45, 90]);
     shuffleAngleChecklist.innerHTML = SHUFFLE_ANGLES
       .map((angle) => `
         <label class="history-compare-toggle shuffle-angle-chip">
@@ -328,7 +328,7 @@
   const applyAnglePreset = (preset) => {
     const selected = new Set();
     if (preset === "classic") {
-      [0, 45, 90].forEach((angle) => selected.add(angle));
+      [45, 90].forEach((angle) => selected.add(angle));
     } else if (preset === "15") {
       SHUFFLE_ANGLES.filter((angle) => angle % 15 === 0).forEach((angle) => selected.add(angle));
     } else if (preset === "all") {

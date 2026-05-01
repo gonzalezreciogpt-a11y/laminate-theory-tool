@@ -9,10 +9,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <script>
       (() => {
+        const applyEarlyTheme = (theme) => {
+          const nextTheme = theme === "dark" ? "dark" : "light";
+          document.documentElement.setAttribute("data-theme", nextTheme);
+          document.documentElement.classList.toggle("theme-dark", nextTheme === "dark");
+          document.documentElement.style.colorScheme = nextTheme === "dark" ? "dark" : "light";
+        };
+
         try {
-          document.documentElement.dataset.theme = localStorage.getItem("laminate_tool_theme_v1") === "dark" ? "dark" : "light";
+          applyEarlyTheme(localStorage.getItem("laminate_tool_theme_v1"));
         } catch {
-          document.documentElement.dataset.theme = "light";
+          applyEarlyTheme("light");
         }
       })();
     </script>
@@ -60,7 +67,10 @@
 
         const applyTheme = (theme) => {
           const nextTheme = theme === "dark" ? "dark" : "light";
-          root.dataset.theme = nextTheme;
+          root.setAttribute("data-theme", nextTheme);
+          root.classList.toggle("theme-dark", nextTheme === "dark");
+          document.body.classList.toggle("theme-dark", nextTheme === "dark");
+          root.style.colorScheme = nextTheme === "dark" ? "dark" : "light";
           if (button) {
             button.setAttribute("aria-pressed", String(nextTheme === "dark"));
             button.querySelector(".theme-toggle-text").textContent = nextTheme === "dark" ? "Claro" : "Oscuro";
@@ -68,11 +78,13 @@
         };
 
         applyTheme(localStorage.getItem(THEME_KEY) || "light");
-        button?.addEventListener("click", () => {
-          const nextTheme = root.dataset.theme === "dark" ? "light" : "dark";
-          localStorage.setItem(THEME_KEY, nextTheme);
-          applyTheme(nextTheme);
-        });
+        if (button) {
+          button.addEventListener("click", () => {
+            const nextTheme = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+            localStorage.setItem(THEME_KEY, nextTheme);
+            applyTheme(nextTheme);
+          });
+        }
       })();
     </script>
   </body>
