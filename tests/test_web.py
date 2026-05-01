@@ -313,6 +313,8 @@ def test_api_export_results_returns_dynamic_workbook() -> None:
     assert worksheet["I30"].value == 400
     assert worksheet["J30"].value == 275
     assert worksheet["K30"].value == 3543.255
+    assert worksheet.freeze_panes is None
+    assert workbook["Resumen"].freeze_panes is None
     assert workbook["Portada"]["A1"].value == "MAD Formula Team"
     assert workbook["Portada"]["A3"].value == "Resultados de laminados"
     assert workbook["Resumen"]["A3"].value == "Comparativa global"
@@ -378,3 +380,4 @@ def test_api_export_results_recomputes_tampered_summary_from_form_state() -> Non
     assert worksheet["I30"].value == 400
     assert worksheet["J30"].value == 275
     assert worksheet["K30"].value == 3543.255
+    assert worksheet.freeze_panes is None

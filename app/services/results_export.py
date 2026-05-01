@@ -318,7 +318,6 @@ def _write_summary_sheet(workbook: Workbook, entries: list[ExportHistoryEntryMod
             12: 22,
         },
     )
-    worksheet.freeze_panes = f"A{start_row + 1}"
     worksheet.row_dimensions[start_row].height = 26
 
     if ordered_entries:
@@ -550,7 +549,6 @@ def _write_group_sheet(workbook: Workbook, layer_count: int, entries: list[Expor
             14: 22,
         },
     )
-    worksheet.freeze_panes = f"A{start_row + 1}"
     worksheet.row_dimensions[start_row].height = 26
 
 
@@ -630,7 +628,6 @@ def _write_metadata_sheet(workbook: Workbook, entries: list[ExportHistoryEntryMo
             16: 46,
         },
     )
-    worksheet.freeze_panes = "A7"
 
 
 def build_results_export_workbook(entries: list[ExportHistoryEntryModel]) -> bytes:

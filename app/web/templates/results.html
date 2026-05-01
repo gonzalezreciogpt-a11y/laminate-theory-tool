@@ -213,7 +213,7 @@
     const angle = Number(value);
     const absolute = Math.abs(angle);
     const text = Number.isInteger(absolute) ? String(absolute) : absolute.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
-    return absolute === 0 ? "0°" : `±${text}°`;
+    return absolute === 0 ? "0\u00b0" : `\u00b1${text}\u00b0`;
   };
 
   const panelLengthMm = (entry) =>
@@ -236,16 +236,63 @@
     return bottom ? `${top} / ${core} / ${bottom}` : `${top} / ${core}`;
   };
 
-  const groupEntries = (entries) => {
+  const splitResultGroups = (entries) => {
+    const ordered = sortEntries(entries);
+    const asymmetric = ordered.filter((entry) => entry.summary.is_symmetric === false);
     const groups = new Map();
-    sortEntries(entries).forEach((entry) => {
-      const key = Number(entry.summary.visible_layers || 0);
-      const bucket = groups.get(key) || [];
-      bucket.push(entry);
-      groups.set(key, bucket);
-    });
-    return [...groups.entries()].sort((left, right) => right[0] - left[0]);
+    ordered
+      .filter((entry) => entry.summary.is_symmetric !== false)
+      .forEach((entry) => {
+        const key = Number(entry.summary.visible_layers || 0);
+        const bucket = groups.get(key) || [];
+        bucket.push(entry);
+        groups.set(key, bucket);
+      });
+    return {
+      asymmetric,
+      symmetricGroups: [...groups.entries()].sort((left, right) => right[0] - left[0]),
+    };
   };
+
+  const renderResultCards = (entries, titleBuilder, compareSelection, selectedResults) =>
+    entries
+      .map((entry) => {
+          const savedAt = entry.saved_at ? new Date(entry.saved_at).toLocaleString("es-ES") : "Sin fecha";
+          const encodedSignature = encodeSignature(entry.signature);
+          return `
+          <article class="history-card history-card-wide${selectedResults.has(entry.signature) ? " is-selected" : ""}" data-signature="${encodedSignature}">
+            <div class="history-card-head">
+              <div>
+                <h3>${escapeHtml(titleBuilder(entry))}</h3>
+                <p class="history-date">${escapeHtml(savedAt)}</p>
+              </div>
+              <span>${Number(entry.summary.elastic_gradient_theory).toFixed(3)}</span>
+            </div>
+            <label class="history-compare-toggle">
+              <input type="checkbox" class="compare-result-entry" data-signature="${encodedSignature}" ${compareSelection.has(entry.signature) ? "checked" : ""}>
+              <span>Incluir en comparador</span>
+            </label>
+            <dl class="history-metrics">
+              <div><dt>Elastic gradient theory</dt><dd>${Number(entry.summary.elastic_gradient_theory).toFixed(3)}</dd></div>
+              <div><dt>EI teoria</dt><dd>${Number(entry.summary.ei_theory).toFixed(3)}</dd></div>
+              <div><dt>Espesor de fibra</dt><dd>${Number(entry.summary.fiber_thickness_mm).toFixed(3)} mm</dd></div>
+              <div><dt>Espesor total</dt><dd>${Number(entry.summary.total_thickness_mm).toFixed(3)} mm</dd></div>
+              <div><dt>Core</dt><dd>${escapeHtml(entry.summary.core_material_id)}</dd></div>
+              <div><dt>Simetria</dt><dd>${entry.summary.is_symmetric ? "Si" : "No"}</dd></div>
+              <div><dt>Largo</dt><dd>${panelLengthMm(entry).toFixed(3)} mm</dd></div>
+              <div><dt>Ancho</dt><dd>${panelWidthMm(entry).toFixed(3)} mm</dd></div>
+              <div><dt>Secuencia</dt><dd>${escapeHtml(buildLaminateSequence(entry))}</dd></div>
+            </dl>
+            <div class="library-actions">
+              <button type="button" class="secondary-button select-result-button" data-signature="${encodedSignature}" aria-pressed="${selectedResults.has(entry.signature) ? "true" : "false"}">${selectedResults.has(entry.signature) ? "Seleccionado" : "Seleccionar"}</button>
+              <button type="button" class="secondary-button open-result-entry" data-signature="${encodedSignature}">Abrir en calculadora</button>
+              <a class="secondary-link" href="/compare">Comparar</a>
+              <button type="button" class="ghost-button delete-result-entry" data-signature="${encodedSignature}">Borrar</button>
+            </div>
+          </article>
+        `;
+      })
+      .join("");
 
   const renderHistory = () => {
     const history = loadHistory();
@@ -260,48 +307,35 @@
     }
     emptyState.hidden = true;
 
-    groupEntries(history).forEach(([layerCount, entries]) => {
+    const { asymmetric, symmetricGroups } = splitResultGroups(history);
+
+    if (asymmetric.length) {
+      const section = document.createElement("section");
+      section.className = "result-group-section result-group-section-asymmetric";
+      const cards = renderResultCards(
+        asymmetric,
+        (entry) => `${entry.summary.visible_layers} capas visibles`,
+        compareSelection,
+        selectedResults
+      );
+      section.innerHTML = `
+        <details class="details-panel result-group-details" data-group-key="asymmetric" ${groupOpenState.asymmetric ? "open" : ""}>
+          <summary>
+            <span>Asim&eacute;tricos</span>
+            <span class="result-group-summary-meta">${asymmetric.length} resultados</span>
+          </summary>
+          <div class="details-body">
+            <div class="history-grid history-grid-wide">${cards}</div>
+          </div>
+        </details>
+      `;
+      resultsGroups.appendChild(section);
+    }
+
+    symmetricGroups.forEach(([layerCount, entries]) => {
       const section = document.createElement("section");
       section.className = "result-group-section";
-
-      const cards = entries
-        .map((entry) => {
-            const savedAt = entry.saved_at ? new Date(entry.saved_at).toLocaleString("es-ES") : "Sin fecha";
-            const encodedSignature = encodeSignature(entry.signature);
-            return `
-            <article class="history-card history-card-wide${selectedResults.has(entry.signature) ? " is-selected" : ""}" data-signature="${encodedSignature}">
-              <div class="history-card-head">
-                <div>
-                  <h3>${layerCount} capas visibles</h3>
-                  <p class="history-date">${escapeHtml(savedAt)}</p>
-                </div>
-                <span>${Number(entry.summary.elastic_gradient_theory).toFixed(3)}</span>
-              </div>
-              <label class="history-compare-toggle">
-                <input type="checkbox" class="compare-result-entry" data-signature="${encodedSignature}" ${compareSelection.has(entry.signature) ? "checked" : ""}>
-                <span>Incluir en comparador</span>
-              </label>
-              <dl class="history-metrics">
-                <div><dt>Elastic gradient theory</dt><dd>${Number(entry.summary.elastic_gradient_theory).toFixed(3)}</dd></div>
-                <div><dt>EI teoría</dt><dd>${Number(entry.summary.ei_theory).toFixed(3)}</dd></div>
-                <div><dt>Espesor de fibra</dt><dd>${Number(entry.summary.fiber_thickness_mm).toFixed(3)} mm</dd></div>
-                <div><dt>Espesor total</dt><dd>${Number(entry.summary.total_thickness_mm).toFixed(3)} mm</dd></div>
-                <div><dt>Core</dt><dd>${escapeHtml(entry.summary.core_material_id)}</dd></div>
-                <div><dt>Simetria</dt><dd>${entry.summary.is_symmetric ? "Si" : "No"}</dd></div>
-                <div><dt>Largo</dt><dd>${panelLengthMm(entry).toFixed(3)} mm</dd></div>
-                <div><dt>Ancho</dt><dd>${panelWidthMm(entry).toFixed(3)} mm</dd></div>
-                <div><dt>Secuencia</dt><dd>${escapeHtml(buildLaminateSequence(entry))}</dd></div>
-              </dl>
-              <div class="library-actions">
-                <button type="button" class="secondary-button select-result-button" data-signature="${encodedSignature}" aria-pressed="${selectedResults.has(entry.signature) ? "true" : "false"}">${selectedResults.has(entry.signature) ? "Seleccionado" : "Seleccionar"}</button>
-                <button type="button" class="secondary-button open-result-entry" data-signature="${encodedSignature}">Abrir en calculadora</button>
-                <a class="secondary-link" href="/compare">Comparar</a>
-                <button type="button" class="ghost-button delete-result-entry" data-signature="${encodedSignature}">Borrar</button>
-              </div>
-            </article>
-          `;
-        })
-        .join("");
+      const cards = renderResultCards(entries, () => `${layerCount} capas visibles`, compareSelection, selectedResults);
 
       section.innerHTML = `
         <details class="details-panel result-group-details" data-group-key="${layerCount}" ${groupOpenState[String(layerCount)] ? "open" : ""}>

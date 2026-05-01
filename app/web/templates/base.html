@@ -7,6 +7,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+      (() => {
+        try {
+          document.documentElement.dataset.theme = localStorage.getItem("laminate_tool_theme_v1") === "dark" ? "dark" : "light";
+        } catch {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
     <link rel="stylesheet" href="/static/styles.css">
   </head>
   <body>
@@ -27,8 +36,10 @@
           <a href="/materials-library" class="top-nav-link{% if request.url.path == '/materials-library' %} is-active{% endif %}">Materiales</a>
           <a href="/tutorial" class="top-nav-link{% if request.url.path == '/tutorial' %} is-active{% endif %}">Guía</a>
         </nav>
-        <button type="button" class="theme-toggle" id="theme-toggle" aria-pressed="false">
-          <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-pressed="false" aria-label="Cambiar modo oscuro">
+          <span class="theme-toggle-track" aria-hidden="true">
+            <span class="theme-toggle-thumb"></span>
+          </span>
           <span class="theme-toggle-text">Oscuro</span>
         </button>
       </div>
@@ -52,7 +63,6 @@
           root.dataset.theme = nextTheme;
           if (button) {
             button.setAttribute("aria-pressed", String(nextTheme === "dark"));
-            button.querySelector(".theme-toggle-icon").textContent = nextTheme === "dark" ? "☀" : "☾";
             button.querySelector(".theme-toggle-text").textContent = nextTheme === "dark" ? "Claro" : "Oscuro";
           }
         };

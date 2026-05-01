@@ -228,12 +228,12 @@ summary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.45rem;
+  gap: 0.6rem;
   min-height: 42px;
-  padding: 0.62rem 0.9rem;
+  padding: 0.42rem 0.78rem 0.42rem 0.48rem;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
-  background: var(--surface);
+  background: rgba(255, 255, 255, 0.72);
   color: var(--ink-soft);
   box-shadow: var(--shadow-soft);
   cursor: pointer;
@@ -246,15 +246,35 @@ summary {
   color: var(--accent-strong);
 }
 
-.theme-toggle-icon,
 .theme-toggle-text {
   font-family: var(--font-heading);
   font-weight: 800;
 }
 
-.theme-toggle-icon {
-  font-size: 0.95rem;
-  line-height: 1;
+.theme-toggle-track {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  border-radius: 999px;
+  background: #0b1320;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.theme-toggle-thumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #f7d57a;
+  box-shadow: 0 2px 6px rgba(8, 17, 31, 0.22);
+  transition: transform 180ms ease, background 180ms ease;
+}
+
+:root[data-theme="dark"] .theme-toggle-thumb {
+  transform: translateX(16px);
+  background: #edf4ff;
 }
 
 .page-hero,
@@ -1496,6 +1516,37 @@ select:focus {
   padding: 0.15rem 0.2rem 0.15rem 0;
 }
 
+.shuffle-angle-details {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.62);
+  overflow: hidden;
+}
+
+.shuffle-angle-details summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  padding: 0.72rem 0.85rem;
+  cursor: pointer;
+}
+
+.shuffle-angle-details summary span {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.shuffle-angle-details summary small {
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+.shuffle-angle-details .shuffle-angle-grid {
+  max-height: 145px;
+  padding: 0 0.85rem 0.85rem;
+}
+
 .shuffle-angle-chip {
   margin: 0;
   padding: 0.42rem 0.55rem;
@@ -1848,6 +1899,68 @@ pre {
 :root[data-theme="dark"] .compare-table thead th {
   background: #111d2f;
   color: var(--ink);
+}
+
+:root[data-theme="dark"] .app-card,
+:root[data-theme="dark"] .feedback-card,
+:root[data-theme="dark"] .hero-intro,
+:root[data-theme="dark"] .objective-card,
+:root[data-theme="dark"] .details-panel,
+:root[data-theme="dark"] .result-group-details,
+:root[data-theme="dark"] .tutorial-card,
+:root[data-theme="dark"] .materials-block,
+:root[data-theme="dark"] .import-preview-panel,
+:root[data-theme="dark"] .selection-toolbar {
+  background: linear-gradient(180deg, rgba(15, 25, 41, 0.96) 0%, rgba(10, 18, 32, 0.96) 100%);
+  border-color: var(--border);
+}
+
+:root[data-theme="dark"] .objective-item,
+:root[data-theme="dark"] .history-compare-toggle,
+:root[data-theme="dark"] .material-accordion summary,
+:root[data-theme="dark"] .material-preview-card,
+:root[data-theme="dark"] .modal-content,
+:root[data-theme="dark"] .compare-highlight-card,
+:root[data-theme="dark"] .result-group-details summary {
+  background: linear-gradient(180deg, #111d2f 0%, #0b1422 100%);
+  border-color: var(--border-strong);
+}
+
+:root[data-theme="dark"] .primary-button,
+:root[data-theme="dark"] .primary-link,
+:root[data-theme="dark"] .top-nav-link.is-active,
+:root[data-theme="dark"] .objective-item-strong,
+:root[data-theme="dark"] .secondary-button-strong {
+  background: linear-gradient(135deg, #edf4ff 0%, #9ec5ff 100%);
+  border-color: rgba(237, 244, 255, 0.42);
+  color: #07101c;
+  box-shadow: 0 14px 28px rgba(110, 168, 255, 0.22);
+}
+
+:root[data-theme="dark"] .primary-button *,
+:root[data-theme="dark"] .primary-link *,
+:root[data-theme="dark"] .objective-item-strong span,
+:root[data-theme="dark"] .objective-item-strong strong {
+  color: #07101c;
+}
+
+:root[data-theme="dark"] .excel-export-button {
+  background: linear-gradient(135deg, #dff8e9 0%, #84d7a3 100%);
+  color: #07341b;
+}
+
+:root[data-theme="dark"] .excel-delete-button {
+  background: linear-gradient(135deg, #ffd9d9 0%, #ff8787 100%);
+  color: #4d0909;
+}
+
+:root[data-theme="dark"] .laminate-visual,
+:root[data-theme="dark"] .laminate-annotated-frame {
+  background: linear-gradient(180deg, #111d2f 0%, #07101c 100%);
+}
+
+:root[data-theme="dark"] .brand-logo {
+  background: #edf4ff;
 }
 
 @media (max-width: 1240px) {

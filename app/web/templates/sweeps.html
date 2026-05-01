@@ -46,11 +46,17 @@
             <span>Orientaciones a probar</span>
             <div class="shuffle-preset-row">
               <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="classic">0/&plusmn;45/&plusmn;90</button>
-              <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="15">Cada 15°</button>
-              <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="all">Cada 5°</button>
+              <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="15">Cada 15&deg;</button>
+              <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="all">Cada 5&deg;</button>
               <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="clear">Limpiar</button>
             </div>
-            <div class="sweep-core-options shuffle-angle-grid" id="shuffle-angle-checklist"></div>
+            <details class="shuffle-angle-details">
+              <summary>
+                <span id="shuffle-angle-summary">3 orientaciones seleccionadas</span>
+                <small>Ajustar manualmente</small>
+              </summary>
+              <div class="sweep-core-options shuffle-angle-grid" id="shuffle-angle-checklist"></div>
+            </details>
           </div>
         </div>
 
@@ -161,6 +167,7 @@
   const shuffleMissingBase = document.getElementById("shuffle-missing-base");
   const shuffleForm = document.getElementById("shuffle-form");
   const shuffleMode = document.getElementById("shuffle-mode");
+  const shuffleAngleSummary = document.getElementById("shuffle-angle-summary");
   const shuffleAngleChecklist = document.getElementById("shuffle-angle-checklist");
   const shuffleEnableCores = document.getElementById("shuffle-enable-cores");
   const shuffleCoreOptions = document.getElementById("shuffle-core-options");
@@ -297,6 +304,7 @@
         </label>
       `)
       .join("");
+    updateAngleSelectionSummary();
   };
 
   const parseAngles = () =>
@@ -305,6 +313,17 @@
         .map((checkbox) => Number(checkbox.value))
         .filter((item) => Number.isFinite(item) && SHUFFLE_ANGLES.includes(item))
     )].sort((left, right) => left - right);
+
+  const updateAngleSelectionSummary = () => {
+    const selected = parseAngles();
+    if (!selected.length) {
+      shuffleAngleSummary.textContent = "Sin orientaciones seleccionadas";
+      return;
+    }
+    const preview = selected.slice(0, 4).map((angle) => formatAngleLabel(angle)).join(", ");
+    const suffix = selected.length > 4 ? ` +${selected.length - 4}` : "";
+    shuffleAngleSummary.textContent = `${selected.length} orientaciones: ${preview}${suffix}`;
+  };
 
   const applyAnglePreset = (preset) => {
     const selected = new Set();
@@ -319,6 +338,7 @@
     shuffleAngleChecklist.querySelectorAll(".shuffle-angle-checkbox").forEach((checkbox) => {
       checkbox.checked = selected.has(Number(checkbox.value));
     });
+    updateAngleSelectionSummary();
     persistShuffleState();
   };
 
@@ -464,6 +484,7 @@
     shuffleAngleChecklist.querySelectorAll(".shuffle-angle-checkbox").forEach((checkbox) => {
       checkbox.checked = selectedAngles.size ? selectedAngles.has(checkbox.value) : true;
     });
+    updateAngleSelectionSummary();
 
     const selectedLayerRefs = controls.layer_refs?.length
       ? controls.layer_refs.map((value) => String(value))
@@ -921,7 +942,10 @@
   document.querySelectorAll(".shuffle-angle-preset").forEach((button) => {
     button.addEventListener("click", () => applyAnglePreset(button.dataset.anglePreset));
   });
-  shuffleAngleChecklist.addEventListener("change", persistShuffleState);
+  shuffleAngleChecklist.addEventListener("change", () => {
+    updateAngleSelectionSummary();
+    persistShuffleState();
+  });
   shuffleCoreOptions.addEventListener("change", persistShuffleState);
   shuffleLayerChecklist.addEventListener("change", persistShuffleState);
   shuffleMode.addEventListener("change", persistShuffleState);
