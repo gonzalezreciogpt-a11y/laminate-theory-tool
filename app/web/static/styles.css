@@ -2152,3 +2152,81 @@ pre {
     letter-spacing: 0.08em;
   }
 }
+
+/* Broad fallback for browsers that apply the class path more reliably than data attributes. */
+html.theme-dark body,
+body.theme-dark {
+  background:
+    radial-gradient(circle at top left, rgba(110, 168, 255, 0.13), transparent 26%),
+    linear-gradient(180deg, #050914 0%, #0b1422 100%);
+  color: var(--ink);
+}
+
+html.theme-dark .site-header,
+html.theme-dark .app-card,
+html.theme-dark .feedback-card,
+html.theme-dark .hero-intro,
+html.theme-dark .objective-card,
+html.theme-dark .details-panel,
+html.theme-dark .result-group-details,
+html.theme-dark .tutorial-card,
+html.theme-dark .materials-block,
+html.theme-dark .selection-toolbar,
+html.theme-dark .compare-table-wrap,
+html.theme-dark .history-card,
+html.theme-dark .ingredient-card,
+html.theme-dark .empty-state-card,
+html.theme-dark .material-accordion,
+html.theme-dark .modal-dialog {
+  background: linear-gradient(180deg, rgba(15, 25, 41, 0.96) 0%, rgba(10, 18, 32, 0.96) 100%);
+  border-color: var(--border);
+}
+
+html.theme-dark input,
+html.theme-dark select,
+html.theme-dark textarea {
+  border-color: rgba(221, 232, 255, 0.16);
+  background: #0b1422;
+  color: var(--ink);
+}
+
+html.theme-dark .top-nav-link,
+html.theme-dark .secondary-link,
+html.theme-dark .secondary-button,
+html.theme-dark .ghost-button,
+html.theme-dark .theme-toggle,
+html.theme-dark .objective-item,
+html.theme-dark .history-compare-toggle,
+html.theme-dark .toggle-field,
+html.theme-dark .core-field,
+html.theme-dark .shuffle-control-panel,
+html.theme-dark .shuffle-angle-chip,
+html.theme-dark .result-group-details summary,
+html.theme-dark .laminate-legend-item,
+html.theme-dark .laminate-annotated-frame {
+  background: #111d2f;
+  border-color: var(--border-strong);
+  color: var(--ink);
+}
+
+html.theme-dark .primary-button,
+html.theme-dark .primary-link,
+html.theme-dark .top-nav-link.is-active,
+html.theme-dark .objective-item-strong,
+html.theme-dark .secondary-button-strong {
+  background: linear-gradient(135deg, #edf4ff 0%, #9ec5ff 100%);
+  border-color: rgba(237, 244, 255, 0.42);
+  color: #07101c;
+}
+
+html.theme-dark .primary-button *,
+html.theme-dark .primary-link *,
+html.theme-dark .objective-item-strong span,
+html.theme-dark .objective-item-strong strong {
+  color: #07101c;
+}
+
+html.theme-dark .theme-toggle-thumb {
+  transform: translateX(16px);
+  background: #edf4ff;
+}

@@ -8,22 +8,48 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Montserrat:wght@400;500;600;700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     <script>
-      (() => {
-        const applyEarlyTheme = (theme) => {
-          const nextTheme = theme === "dark" ? "dark" : "light";
-          document.documentElement.setAttribute("data-theme", nextTheme);
-          document.documentElement.classList.toggle("theme-dark", nextTheme === "dark");
-          document.documentElement.style.colorScheme = nextTheme === "dark" ? "dark" : "light";
-        };
+      (function () {
+        var THEME_KEY = "laminate_tool_theme_v1";
 
-        try {
-          applyEarlyTheme(localStorage.getItem("laminate_tool_theme_v1"));
-        } catch {
-          applyEarlyTheme("light");
+        function readCookieTheme() {
+          var match = document.cookie.match(new RegExp("(?:^|; )" + THEME_KEY + "=([^;]*)"));
+          return match ? decodeURIComponent(match[1]) : "";
         }
+
+        function readStoredTheme() {
+          var storedTheme = "";
+          try {
+            storedTheme = window.localStorage ? window.localStorage.getItem(THEME_KEY) : "";
+          } catch (error) {
+            storedTheme = "";
+          }
+          return storedTheme || readCookieTheme();
+        }
+
+        function setThemeClass(element, isDark) {
+          if (!element) {
+            return;
+          }
+          var className = (" " + (element.className || "") + " ").replace(/\s+/g, " ");
+          className = className.replace(" theme-dark ", " ");
+          if (isDark) {
+            className += " theme-dark ";
+          }
+          element.className = className.replace(/^\s+|\s+$/g, "");
+        }
+
+        function applyEarlyTheme(theme) {
+          var nextTheme = theme === "dark" ? "dark" : "light";
+          var root = document.documentElement;
+          root.setAttribute("data-theme", nextTheme);
+          setThemeClass(root, nextTheme === "dark");
+          root.style.colorScheme = nextTheme === "dark" ? "dark" : "light";
+        }
+
+        applyEarlyTheme(readStoredTheme());
       })();
     </script>
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css?v=20260501-dark-compat">
   </head>
   <body>
     <header class="site-header">
@@ -60,30 +86,83 @@
       </div>
     </footer>
     <script>
-      (() => {
-        const THEME_KEY = "laminate_tool_theme_v1";
-        const root = document.documentElement;
-        const button = document.getElementById("theme-toggle");
+      (function () {
+        var THEME_KEY = "laminate_tool_theme_v1";
+        var root = document.documentElement;
+        var button = document.getElementById("theme-toggle");
 
-        const applyTheme = (theme) => {
-          const nextTheme = theme === "dark" ? "dark" : "light";
-          root.setAttribute("data-theme", nextTheme);
-          root.classList.toggle("theme-dark", nextTheme === "dark");
-          document.body.classList.toggle("theme-dark", nextTheme === "dark");
-          root.style.colorScheme = nextTheme === "dark" ? "dark" : "light";
-          if (button) {
-            button.setAttribute("aria-pressed", String(nextTheme === "dark"));
-            button.querySelector(".theme-toggle-text").textContent = nextTheme === "dark" ? "Claro" : "Oscuro";
+        function readCookieTheme() {
+          var match = document.cookie.match(new RegExp("(?:^|; )" + THEME_KEY + "=([^;]*)"));
+          return match ? decodeURIComponent(match[1]) : "";
+        }
+
+        function readStoredTheme() {
+          var storedTheme = "";
+          try {
+            storedTheme = window.localStorage ? window.localStorage.getItem(THEME_KEY) : "";
+          } catch (error) {
+            storedTheme = "";
           }
-        };
+          return storedTheme || readCookieTheme() || "light";
+        }
 
-        applyTheme(localStorage.getItem(THEME_KEY) || "light");
+        function writeStoredTheme(theme) {
+          try {
+            if (window.localStorage) {
+              window.localStorage.setItem(THEME_KEY, theme);
+            }
+          } catch (error) {
+            // Cookie fallback keeps the toggle usable when localStorage is blocked.
+          }
+          document.cookie = THEME_KEY + "=" + encodeURIComponent(theme) + "; path=/; max-age=31536000; SameSite=Lax";
+        }
+
+        function setThemeClass(element, isDark) {
+          if (!element) {
+            return;
+          }
+          var className = (" " + (element.className || "") + " ").replace(/\s+/g, " ");
+          className = className.replace(" theme-dark ", " ");
+          if (isDark) {
+            className += " theme-dark ";
+          }
+          element.className = className.replace(/^\s+|\s+$/g, "");
+        }
+
+        function setButtonState(isDark) {
+          if (!button) {
+            return;
+          }
+          var labels = button.getElementsByClassName("theme-toggle-text");
+          button.setAttribute("aria-pressed", isDark ? "true" : "false");
+          if (labels.length) {
+            labels[0].innerHTML = isDark ? "Claro" : "Oscuro";
+          }
+        }
+
+        function applyTheme(theme) {
+          var nextTheme = theme === "dark" ? "dark" : "light";
+          var isDark = nextTheme === "dark";
+          root.setAttribute("data-theme", nextTheme);
+          setThemeClass(root, isDark);
+          setThemeClass(document.body, isDark);
+          root.style.colorScheme = isDark ? "dark" : "light";
+          setButtonState(isDark);
+        }
+
+        function toggleTheme() {
+          var nextTheme = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+          writeStoredTheme(nextTheme);
+          applyTheme(nextTheme);
+        }
+
+        applyTheme(readStoredTheme());
         if (button) {
-          button.addEventListener("click", () => {
-            const nextTheme = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
-            localStorage.setItem(THEME_KEY, nextTheme);
-            applyTheme(nextTheme);
-          });
+          if (button.addEventListener) {
+            button.addEventListener("click", toggleTheme, false);
+          } else if (button.attachEvent) {
+            button.attachEvent("onclick", toggleTheme);
+          }
         }
       })();
     </script>
