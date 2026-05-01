@@ -12,12 +12,18 @@ from app.schemas.inputs import (
     ThreePointBendingConfigModel,
 )
 
+MM_TO_M = 0.001
+
 
 def _parse_float_or_default(form: FormData, key: str, default: float) -> float:
     raw_value = str(form.get(key, "")).strip()
     if raw_value == "":
         return default
     return float(raw_value)
+
+
+def _millimeters_to_meters(value_mm: float) -> float:
+    return value_mm * MM_TO_M
 
 
 def build_request_from_form(form: FormData) -> LaminateRequestModel:
@@ -77,6 +83,9 @@ def build_request_from_form(form: FormData) -> LaminateRequestModel:
                 ]
                 custom_materials_payload.append(override_payload)
 
+    span_mm = _parse_float_or_default(form, "span_mm", 400.0)
+    width_mm = _parse_float_or_default(form, "width_mm", 275.0)
+
     return LaminateRequestModel(
         layers=layers,
         bottom_layers=bottom_layers,
@@ -91,9 +100,9 @@ def build_request_from_form(form: FormData) -> LaminateRequestModel:
         three_point_bending=ThreePointBendingConfigModel(
             elastic_gradient=_parse_float_or_default(form, "elastic_gradient", 2649.0),
             rigidez_rig=_parse_float_or_default(form, "rigidez_rig", 14871.0),
-            span_m=_parse_float_or_default(form, "span_m", 0.4),
-            span_mm=_parse_float_or_default(form, "span_mm", 400.0),
-            width_m=_parse_float_or_default(form, "width_m", 0.275),
-            width_mm=_parse_float_or_default(form, "width_mm", 275.0),
+            span_m=_millimeters_to_meters(span_mm),
+            span_mm=span_mm,
+            width_m=_millimeters_to_meters(width_mm),
+            width_mm=width_mm,
         ),
     )

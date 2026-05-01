@@ -3,7 +3,8 @@ from __future__ import annotations
 from app.domain.materials import RESERVED_MATERIAL_IDS, build_material_catalog, load_material_catalog
 from app.schemas.inputs import LaminateRequestModel
 
-ALLOWED_ORIENTATIONS = {-90.0, -45.0, 0.0, 45.0, 90.0}
+ALLOWED_TWILL_ORIENTATIONS = {float(angle) for angle in range(0, 91, 5)}
+ALLOWED_LEGACY_TWILL_ORIENTATIONS = {float(angle) for angle in range(-90, 91, 5)}
 
 
 def _normalize_orientation(theta_deg: float) -> float:
@@ -30,19 +31,21 @@ def _validate_skin_layers(
                 f"La {side_label} {index} usa el core '{layer.material_id}'. Las capas deben usar materiales de fibra."
             )
         theta_deg = _normalize_orientation(layer.theta_deg)
-        if theta_deg not in ALLOWED_ORIENTATIONS:
+        if material.material_category == "fiber" and material.fiber_family == "ud" and theta_deg != 0.0:
             raise ValueError(
-                f"La {side_label} {index} usa una orientacion no permitida. Solo se admiten -90, -45, 0, 45 y 90 grados."
+                f"La {side_label} {index} usa el material UD '{layer.material_id}' con una orientacion no valida. Las fibras UD solo admiten 0 grados."
             )
-        if material.material_category == "fiber":
-            if material.fiber_family == "ud" and theta_deg != 0.0:
-                raise ValueError(
-                    f"La {side_label} {index} usa el material UD '{layer.material_id}' con una orientacion no valida. Las fibras UD solo admiten 0 grados."
-                )
-            if material.fiber_family == "twill" and theta_deg not in {-90.0, -45.0, 45.0, 90.0}:
-                raise ValueError(
-                    f"La {side_label} {index} usa el material twill '{layer.material_id}' con una orientacion no valida. Las fibras twill solo admiten +-45 o +-90 grados."
-                )
+        allowed_twill_orientations = (
+            ALLOWED_LEGACY_TWILL_ORIENTATIONS if compatibility_mode == "legacy" else ALLOWED_TWILL_ORIENTATIONS
+        )
+        if (
+            material.material_category == "fiber"
+            and material.fiber_family == "twill"
+            and theta_deg not in allowed_twill_orientations
+        ):
+            raise ValueError(
+                f"La {side_label} {index} usa una orientacion no permitida. Las fibras twill admiten orientaciones +-0, +-5, ..., +-90 grados."
+            )
         if layer.material_id == "Dummy":
             if compatibility_mode != "legacy":
                 raise ValueError("La Dummy solo se admite en modo legado.")

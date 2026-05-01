@@ -59,7 +59,7 @@ def test_rejects_invalid_ud_orientation() -> None:
 
 def test_rejects_invalid_twill_orientation() -> None:
     payload = LaminateRequestModel(
-        layers=[{"material_id": "RC416T", "theta_deg": 0.0}],
+        layers=[{"material_id": "RC416T", "theta_deg": -45.0}],
         is_symmetric=True,
         core_material_id="Honeycomb",
     )

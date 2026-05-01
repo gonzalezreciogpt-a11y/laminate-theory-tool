@@ -118,7 +118,31 @@ def _build_export_summary(
         core_material_id=request_model.core_material_id,
         is_symmetric=request_model.is_symmetric if request_model.compatibility_mode == "physical" else False,
         visible_layers=visible_layers,
+        panel_length_mm=request_model.three_point_bending.span_mm,
+        panel_width_mm=request_model.three_point_bending.width_mm,
+        laminate_sequence=_build_laminate_sequence_text(request_model),
     )
+
+
+def _format_angle(theta_deg: float) -> str:
+    value = float(theta_deg)
+    absolute = abs(value)
+    if absolute < 1e-12:
+        return "0°"
+    if absolute.is_integer():
+        return f"±{int(absolute)}°"
+    return f"±{absolute:.3f}".rstrip("0").rstrip(".") + "°"
+
+
+def _build_laminate_sequence_text(request_model: LaminateRequestModel) -> str:
+    top = " / ".join(_format_angle(layer.theta_deg) for layer in request_model.layers)
+    core = f"Core {request_model.core_material_id}"
+    if request_model.is_symmetric:
+        return f"[{top}]s / {core}"
+    bottom = " / ".join(_format_angle(layer.theta_deg) for layer in request_model.bottom_layers)
+    if bottom:
+        return f"{top} / {core} / {bottom}"
+    return f"{top} / {core}"
 
 
 def _normalize_export_entry(entry: ExportHistoryEntryModel) -> ExportHistoryEntryModel:

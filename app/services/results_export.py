@@ -51,29 +51,39 @@ def _format_theta(theta: object) -> str:
     value = float(theta)
     if abs(value) < 1e-12:
         return "0 deg"
-    if abs(value).is_integer():
-        value_text = f"{int(abs(value))}"
+    absolute = abs(value)
+    if absolute.is_integer():
+        value_text = f"{int(absolute)}"
     else:
-        value_text = f"{abs(value):.3f}".rstrip("0").rstrip(".")
-    if value > 0:
-        return f"+-{value_text} deg"
-    return f"-{value_text} deg"
+        value_text = f"{absolute:.3f}".rstrip("0").rstrip(".")
+    return f"+-{value_text} deg"
 
 
 def _build_laminate_text(entry: ExportHistoryEntryModel) -> str:
+    if entry.summary.laminate_sequence:
+        return entry.summary.laminate_sequence
     layers = entry.form_state.get("layers", [])
+    bottom_layers = entry.form_state.get("bottom_layers", [])
     orientations = []
     for layer in layers:
         if isinstance(layer, dict):
             orientations.append(_format_theta(layer.get("theta_deg", 0)))
-    sequence = ", ".join(orientations)
-    suffix = " S" if entry.summary.is_symmetric else ""
-    return f"[{sequence}]{suffix}"
+    top_sequence = ", ".join(orientations)
+    if entry.summary.is_symmetric:
+        return f"[{top_sequence}] S / Core {entry.summary.core_material_id}"
+    bottom_orientations = []
+    for layer in bottom_layers:
+        if isinstance(layer, dict):
+            bottom_orientations.append(_format_theta(layer.get("theta_deg", 0)))
+    bottom_sequence = ", ".join(bottom_orientations)
+    if bottom_sequence:
+        return f"{top_sequence} / Core {entry.summary.core_material_id} / {bottom_sequence}"
+    return f"{top_sequence} / Core {entry.summary.core_material_id}"
 
 
 def _build_cf_type(entry: ExportHistoryEntryModel) -> str:
     seen: list[str] = []
-    for layer in entry.form_state.get("layers", []):
+    for layer in [*entry.form_state.get("layers", []), *entry.form_state.get("bottom_layers", [])]:
         if isinstance(layer, dict):
             material_id = str(layer.get("material_id", ""))
             if material_id and material_id not in seen:
@@ -257,6 +267,8 @@ def _write_summary_sheet(workbook: Workbook, entries: list[ExportHistoryEntryMod
         "Core",
         "Espesor fibra (mm)",
         "Espesor total (mm)",
+        "Largo (mm)",
+        "Ancho (mm)",
         "Elastic gradient theory",
         "EI theory",
         "Fecha",
@@ -280,9 +292,11 @@ def _write_summary_sheet(workbook: Workbook, entries: list[ExportHistoryEntryMod
         worksheet.cell(row=row_index, column=5).value = entry.summary.core_material_id
         worksheet.cell(row=row_index, column=6).value = round(entry.summary.fiber_thickness_mm, 3)
         worksheet.cell(row=row_index, column=7).value = round(entry.summary.total_thickness_mm, 3)
-        worksheet.cell(row=row_index, column=8).value = round(entry.summary.elastic_gradient_theory, 3)
-        worksheet.cell(row=row_index, column=9).value = round(entry.summary.ei_theory, 3)
-        worksheet.cell(row=row_index, column=10).value = entry.saved_at or ""
+        worksheet.cell(row=row_index, column=8).value = round(entry.summary.panel_length_mm, 3)
+        worksheet.cell(row=row_index, column=9).value = round(entry.summary.panel_width_mm, 3)
+        worksheet.cell(row=row_index, column=10).value = round(entry.summary.elastic_gradient_theory, 3)
+        worksheet.cell(row=row_index, column=11).value = round(entry.summary.ei_theory, 3)
+        worksheet.cell(row=row_index, column=12).value = entry.saved_at or ""
 
     end_row = start_row + len(ordered_entries)
     _style_data_region(worksheet, start_row + 1, end_row, len(headers))
@@ -297,9 +311,11 @@ def _write_summary_sheet(workbook: Workbook, entries: list[ExportHistoryEntryMod
             5: 18,
             6: 18,
             7: 18,
-            8: 24,
-            9: 16,
-            10: 22,
+            8: 14,
+            9: 14,
+            10: 24,
+            11: 16,
+            12: 22,
         },
     )
     worksheet.freeze_panes = f"A{start_row + 1}"
@@ -484,6 +500,8 @@ def _write_group_sheet(workbook: Workbook, layer_count: int, entries: list[Expor
         "Core thickness (mm)",
         "Espesor total (mm)",
         "Espesor de fibra (mm)",
+        "Largo (mm)",
+        "Ancho (mm)",
         "Elastic gradient theory",
         "EI theory",
         "Simetría",
@@ -503,10 +521,12 @@ def _write_group_sheet(workbook: Workbook, layer_count: int, entries: list[Expor
         worksheet.cell(row=row_index, column=6).value = round(_core_thickness(entry), 3)
         worksheet.cell(row=row_index, column=7).value = round(entry.summary.total_thickness_mm, 3)
         worksheet.cell(row=row_index, column=8).value = round(entry.summary.fiber_thickness_mm, 3)
-        worksheet.cell(row=row_index, column=9).value = round(entry.summary.elastic_gradient_theory, 3)
-        worksheet.cell(row=row_index, column=10).value = round(entry.summary.ei_theory, 3)
-        worksheet.cell(row=row_index, column=11).value = "Si" if entry.summary.is_symmetric else "No"
-        worksheet.cell(row=row_index, column=12).value = entry.saved_at or ""
+        worksheet.cell(row=row_index, column=9).value = round(entry.summary.panel_length_mm, 3)
+        worksheet.cell(row=row_index, column=10).value = round(entry.summary.panel_width_mm, 3)
+        worksheet.cell(row=row_index, column=11).value = round(entry.summary.elastic_gradient_theory, 3)
+        worksheet.cell(row=row_index, column=12).value = round(entry.summary.ei_theory, 3)
+        worksheet.cell(row=row_index, column=13).value = "Si" if entry.summary.is_symmetric else "No"
+        worksheet.cell(row=row_index, column=14).value = entry.saved_at or ""
 
     end_row = start_row + len(ordered_entries)
     _style_data_region(worksheet, start_row + 1, end_row, len(headers))
@@ -522,10 +542,12 @@ def _write_group_sheet(workbook: Workbook, layer_count: int, entries: list[Expor
             6: 18,
             7: 16,
             8: 18,
-            9: 24,
-            10: 16,
-            11: 12,
-            12: 22,
+            9: 14,
+            10: 14,
+            11: 24,
+            12: 16,
+            13: 12,
+            14: 22,
         },
     )
     worksheet.freeze_panes = f"A{start_row + 1}"
@@ -550,6 +572,8 @@ def _write_metadata_sheet(workbook: Workbook, entries: list[ExportHistoryEntryMo
         "core_material_id",
         "fiber_thickness_mm",
         "total_thickness_mm",
+        "panel_length_mm",
+        "panel_width_mm",
         "elastic_gradient_theory",
         "ei_theory",
         "laminate_text",
@@ -572,13 +596,15 @@ def _write_metadata_sheet(workbook: Workbook, entries: list[ExportHistoryEntryMo
         worksheet.cell(row=row_index, column=5).value = entry.summary.core_material_id
         worksheet.cell(row=row_index, column=6).value = round(entry.summary.fiber_thickness_mm, 3)
         worksheet.cell(row=row_index, column=7).value = round(entry.summary.total_thickness_mm, 3)
-        worksheet.cell(row=row_index, column=8).value = round(entry.summary.elastic_gradient_theory, 3)
-        worksheet.cell(row=row_index, column=9).value = round(entry.summary.ei_theory, 3)
-        worksheet.cell(row=row_index, column=10).value = _build_laminate_text(entry)
-        worksheet.cell(row=row_index, column=11).value = _build_cf_type(entry)
-        worksheet.cell(row=row_index, column=12).value = json.dumps(entry.form_state.get("layers", []), ensure_ascii=False)
-        worksheet.cell(row=row_index, column=13).value = json.dumps(entry.form_state, ensure_ascii=False)
-        worksheet.cell(row=row_index, column=14).value = json.dumps(entry.result_data, ensure_ascii=False)
+        worksheet.cell(row=row_index, column=8).value = round(entry.summary.panel_length_mm, 3)
+        worksheet.cell(row=row_index, column=9).value = round(entry.summary.panel_width_mm, 3)
+        worksheet.cell(row=row_index, column=10).value = round(entry.summary.elastic_gradient_theory, 3)
+        worksheet.cell(row=row_index, column=11).value = round(entry.summary.ei_theory, 3)
+        worksheet.cell(row=row_index, column=12).value = _build_laminate_text(entry)
+        worksheet.cell(row=row_index, column=13).value = _build_cf_type(entry)
+        worksheet.cell(row=row_index, column=14).value = json.dumps(entry.form_state.get("layers", []), ensure_ascii=False)
+        worksheet.cell(row=row_index, column=15).value = json.dumps(entry.form_state, ensure_ascii=False)
+        worksheet.cell(row=row_index, column=16).value = json.dumps(entry.result_data, ensure_ascii=False)
 
     end_row = start_row + len(ordered_entries)
     _style_data_region(worksheet, start_row + 1, end_row, len(headers))
@@ -593,13 +619,15 @@ def _write_metadata_sheet(workbook: Workbook, entries: list[ExportHistoryEntryMo
             5: 18,
             6: 18,
             7: 18,
-            8: 24,
+            8: 16,
             9: 16,
-            10: 42,
-            11: 18,
-            12: 28,
-            13: 34,
-            14: 46,
+            10: 24,
+            11: 16,
+            12: 42,
+            13: 18,
+            14: 28,
+            15: 34,
+            16: 46,
         },
     )
     worksheet.freeze_panes = "A7"

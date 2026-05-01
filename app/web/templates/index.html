@@ -48,6 +48,8 @@
 
       <form method="post" class="stack-form" id="laminate-form" autocomplete="off">
         <input type="hidden" name="custom_materials_json" id="custom-materials-json" value='{{ form_state.custom_materials | default([], true) | tojson }}'>
+        <input type="hidden" name="elastic_gradient" value="{{ form_state.elastic_gradient }}">
+        <input type="hidden" name="rigidez_rig" value="{{ form_state.rigidez_rig }}">
 
         <div class="control-grid control-grid-top control-grid-structural">
           <label class="toggle-field">
@@ -137,28 +139,12 @@
 
           <div class="advanced-grid">
             <label>
-              <span>Gradiente elástico</span>
-              <input type="number" step="any" name="elastic_gradient" value="{{ form_state.elastic_gradient }}">
-            </label>
-            <label>
-              <span>Rigidez del utillaje</span>
-              <input type="number" step="any" name="rigidez_rig" value="{{ form_state.rigidez_rig }}">
-            </label>
-            <label>
-              <span>Luz (m)</span>
-              <input type="number" step="any" name="span_m" value="{{ form_state.span_m }}">
-            </label>
-            <label>
-              <span>Luz (mm)</span>
-              <input type="number" step="any" name="span_mm" value="{{ form_state.span_mm }}">
-            </label>
-            <label>
-              <span>Ancho (m)</span>
-              <input type="number" step="any" name="width_m" value="{{ form_state.width_m }}">
+              <span>Largo (mm)</span>
+              <input type="number" step="any" min="0.001" name="span_mm" value="{{ form_state.span_mm }}">
             </label>
             <label>
               <span>Ancho (mm)</span>
-              <input type="number" step="any" name="width_mm" value="{{ form_state.width_mm }}">
+              <input type="number" step="any" min="0.001" name="width_mm" value="{{ form_state.width_mm }}">
             </label>
           </div>
         </div>
@@ -304,6 +290,14 @@
           <span>Core seleccionado</span>
           <strong>{{ form_state.core_material_id }}</strong>
         </div>
+        <div class="objective-item">
+          <span>Largo panel</span>
+          <strong>{{ form_state.span_mm | fmt3 }} mm</strong>
+        </div>
+        <div class="objective-item">
+          <span>Ancho panel</span>
+          <strong>{{ form_state.width_mm | fmt3 }} mm</strong>
+        </div>
       </div>
     </article>
 
@@ -441,7 +435,9 @@
     "total_thickness_mm": {{ total_laminate_thickness_mm | tojson }},
     "core_material_id": {{ form_state.core_material_id | tojson }},
     "is_symmetric": {{ form_state.is_symmetric | tojson }},
-    "visible_layers": {{ summary.layer_count | tojson }}
+    "visible_layers": {{ summary.layer_count | tojson }},
+    "panel_length_mm": {{ form_state.span_mm | tojson }},
+    "panel_width_mm": {{ form_state.width_mm | tojson }}
   }
 </script>
 <script id="result-full-data" type="application/json">{{ result.model_dump() | tojson }}</script>
@@ -511,12 +507,12 @@
   const currentResultSummaryNode = document.getElementById("result-summary-data");
   const currentFullResultNode = document.getElementById("result-full-data");
   const ORIENTATION_OPTIONS = {
-    twill: [
-      { value: "45", label: "+-45" },
-      { value: "90", label: "+-90" },
-    ],
-    ud: [{ value: "0", label: "0" }],
-    fallback: [{ value: "0", label: "0" }],
+    twill: Array.from({ length: 19 }, (_, index) => {
+      const angle = index * 5;
+      return { value: String(angle), label: `\u00b1${angle}\u00b0` };
+    }),
+    ud: [{ value: "0", label: "0\u00b0" }],
+    fallback: [{ value: "0", label: "0\u00b0" }],
   };
   const escapeHtml = (value) =>
     String(value ?? "")
@@ -764,12 +760,14 @@
       is_symmetric: isSymmetricToggle.checked,
       core_material_id: coreSelect.value,
       insert_dummy_layer_for_odd_compatibility: false,
-      elastic_gradient: laminateForm.querySelector('input[name="elastic_gradient"]').value,
-      rigidez_rig: laminateForm.querySelector('input[name="rigidez_rig"]').value,
-      span_m: laminateForm.querySelector('input[name="span_m"]').value,
-      span_mm: laminateForm.querySelector('input[name="span_mm"]').value,
-      width_m: laminateForm.querySelector('input[name="width_m"]').value,
-      width_mm: laminateForm.querySelector('input[name="width_mm"]').value,
+      three_point_bending: {
+        elastic_gradient: Number(laminateForm.querySelector('input[name="elastic_gradient"]').value),
+        rigidez_rig: Number(laminateForm.querySelector('input[name="rigidez_rig"]').value),
+        span_mm: Number(laminateForm.querySelector('input[name="span_mm"]').value),
+        span_m: Number(laminateForm.querySelector('input[name="span_mm"]').value) * 0.001,
+        width_mm: Number(laminateForm.querySelector('input[name="width_mm"]').value),
+        width_m: Number(laminateForm.querySelector('input[name="width_mm"]').value) * 0.001,
+      },
     };
     state.custom_materials = buildReferencedCustomMaterialSnapshot(state);
     return state;
@@ -781,7 +779,25 @@
     is_symmetric: state.is_symmetric,
     core_material_id: state.core_material_id,
     insert_dummy_layer_for_odd_compatibility: state.insert_dummy_layer_for_odd_compatibility,
+    three_point_bending: state.three_point_bending,
   });
+
+  const formatAngleLabel = (value) => {
+    const angle = Number(value);
+    const absolute = Math.abs(angle);
+    const text = Number.isInteger(absolute) ? String(absolute) : absolute.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+    return absolute === 0 ? "0\u00b0" : `\u00b1${text}\u00b0`;
+  };
+
+  const buildLaminateSequence = (state) => {
+    const top = (state.layers || []).map((layer) => formatAngleLabel(layer.theta_deg)).join(" / ");
+    const core = `Core ${state.core_material_id}`;
+    if (state.is_symmetric) {
+      return `[${top}]s / ${core}`;
+    }
+    const bottom = (state.bottom_layers || []).map((layer) => formatAngleLabel(layer.theta_deg)).join(" / ");
+    return bottom ? `${top} / ${core} / ${bottom}` : `${top} / ${core}`;
+  };
 
   const applyFormState = (state) => {
     if (!state || !state.layers?.length) {
@@ -828,12 +844,11 @@
     });
 
     coreSelect.value = state.core_material_id || coreSelect.value;
-    laminateForm.querySelector('input[name="elastic_gradient"]').value = state.elastic_gradient ?? "";
-    laminateForm.querySelector('input[name="rigidez_rig"]').value = state.rigidez_rig ?? "";
-    laminateForm.querySelector('input[name="span_m"]').value = state.span_m ?? "";
-    laminateForm.querySelector('input[name="span_mm"]').value = state.span_mm ?? "";
-    laminateForm.querySelector('input[name="width_m"]').value = state.width_m ?? "";
-    laminateForm.querySelector('input[name="width_mm"]').value = state.width_mm ?? "";
+    const bendingState = state.three_point_bending || state;
+    laminateForm.querySelector('input[name="elastic_gradient"]').value = bendingState.elastic_gradient ?? "2649";
+    laminateForm.querySelector('input[name="rigidez_rig"]').value = bendingState.rigidez_rig ?? "14871";
+    laminateForm.querySelector('input[name="span_mm"]').value = bendingState.span_mm ?? "400";
+    laminateForm.querySelector('input[name="width_mm"]').value = bendingState.width_mm ?? "275";
     updateHiddenCustomMaterialsField();
     refreshLayerLabels();
     syncCoreThicknessInput();
@@ -863,6 +878,7 @@
     }
     const formState = serializeFormState();
     const summary = JSON.parse(currentResultSummaryNode.textContent);
+    summary.laminate_sequence = buildLaminateSequence(formState);
     const resultData = currentFullResultNode ? JSON.parse(currentFullResultNode.textContent) : {};
     const entry = {
       signature: buildHistorySignature(formState),

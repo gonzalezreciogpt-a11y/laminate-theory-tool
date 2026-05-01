@@ -209,6 +209,33 @@
   const sortEntries = (entries) =>
     [...entries].sort((left, right) => Number(right.summary.ei_theory) - Number(left.summary.ei_theory));
 
+  const formatAngleLabel = (value) => {
+    const angle = Number(value);
+    const absolute = Math.abs(angle);
+    const text = Number.isInteger(absolute) ? String(absolute) : absolute.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+    return absolute === 0 ? "0°" : `±${text}°`;
+  };
+
+  const panelLengthMm = (entry) =>
+    Number(entry.summary?.panel_length_mm ?? entry.form_state?.three_point_bending?.span_mm ?? entry.form_state?.span_mm ?? 400);
+
+  const panelWidthMm = (entry) =>
+    Number(entry.summary?.panel_width_mm ?? entry.form_state?.three_point_bending?.width_mm ?? entry.form_state?.width_mm ?? 275);
+
+  const buildLaminateSequence = (entry) => {
+    if (entry.summary?.laminate_sequence) {
+      return entry.summary.laminate_sequence;
+    }
+    const state = entry.form_state || {};
+    const top = (state.layers || []).map((layer) => formatAngleLabel(layer.theta_deg)).join(" / ");
+    const core = `Core ${state.core_material_id || entry.summary?.core_material_id || ""}`.trim();
+    if (state.is_symmetric !== false) {
+      return `[${top}]s / ${core}`;
+    }
+    const bottom = (state.bottom_layers || []).map((layer) => formatAngleLabel(layer.theta_deg)).join(" / ");
+    return bottom ? `${top} / ${core} / ${bottom}` : `${top} / ${core}`;
+  };
+
   const groupEntries = (entries) => {
     const groups = new Map();
     sortEntries(entries).forEach((entry) => {
@@ -260,7 +287,10 @@
                 <div><dt>Espesor de fibra</dt><dd>${Number(entry.summary.fiber_thickness_mm).toFixed(3)} mm</dd></div>
                 <div><dt>Espesor total</dt><dd>${Number(entry.summary.total_thickness_mm).toFixed(3)} mm</dd></div>
                 <div><dt>Core</dt><dd>${escapeHtml(entry.summary.core_material_id)}</dd></div>
-                <div><dt>Simetría</dt><dd>${entry.summary.is_symmetric ? "Sí" : "No"}</dd></div>
+                <div><dt>Simetria</dt><dd>${entry.summary.is_symmetric ? "Si" : "No"}</dd></div>
+                <div><dt>Largo</dt><dd>${panelLengthMm(entry).toFixed(3)} mm</dd></div>
+                <div><dt>Ancho</dt><dd>${panelWidthMm(entry).toFixed(3)} mm</dd></div>
+                <div><dt>Secuencia</dt><dd>${escapeHtml(buildLaminateSequence(entry))}</dd></div>
               </dl>
               <div class="library-actions">
                 <button type="button" class="secondary-button select-result-button" data-signature="${encodedSignature}" aria-pressed="${selectedResults.has(entry.signature) ? "true" : "false"}">${selectedResults.has(entry.signature) ? "Seleccionado" : "Seleccionar"}</button>

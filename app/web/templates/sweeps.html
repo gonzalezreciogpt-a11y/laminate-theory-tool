@@ -35,17 +35,23 @@
       <form class="stack-form" id="shuffle-form">
         <div class="advanced-grid shuffle-top-grid">
           <label class="shuffle-control-panel">
-            <span>Seleccione modo de cálculo</span>
+            <span>Seleccione modo de calculo</span>
             <select id="shuffle-mode">
               <option value="single">Una capa</option>
               <option value="multi">Varias capas</option>
               <option value="all">Todas las capas</option>
             </select>
           </label>
-          <label class="shuffle-control-panel">
+          <div class="shuffle-control-panel">
             <span>Orientaciones a probar</span>
-            <div class="sweep-core-options" id="shuffle-angle-checklist"></div>
-          </label>
+            <div class="shuffle-preset-row">
+              <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="classic">0/&plusmn;45/&plusmn;90</button>
+              <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="15">Cada 15°</button>
+              <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="all">Cada 5°</button>
+              <button type="button" class="ghost-button shuffle-angle-preset" data-angle-preset="clear">Limpiar</button>
+            </div>
+            <div class="sweep-core-options shuffle-angle-grid" id="shuffle-angle-checklist"></div>
+          </div>
         </div>
 
         <div class="materials-block">
@@ -150,7 +156,7 @@
   const CUSTOM_MATERIALS_KEY = "laminate_tool_custom_materials_v1";
   const SHUFFLE_STATE_KEY = "laminate_tool_last_shuffle_v1";
   const HISTORY_LIMIT = 200;
-  const ALLOWED_ANGLES = new Set([-90, -45, 0, 45, 90]);
+  const SHUFFLE_ANGLES = Array.from({ length: 19 }, (_, index) => index * 5);
 
   const shuffleMissingBase = document.getElementById("shuffle-missing-base");
   const shuffleForm = document.getElementById("shuffle-form");
@@ -187,6 +193,21 @@
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
   const formatNumber = (value, suffix = "") => `${Number(value || 0).toFixed(3)}${suffix}`;
+  const formatAngleLabel = (value) => {
+    const angle = Number(value);
+    const absolute = Math.abs(angle);
+    const text = Number.isInteger(absolute) ? String(absolute) : absolute.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+    return absolute === 0 ? "0\u00b0" : `\u00b1${text}\u00b0`;
+  };
+  const buildLaminateSequence = (state) => {
+    const top = (state.layers || []).map((layer) => formatAngleLabel(layer.theta_deg)).join(" / ");
+    const core = `Core ${state.core_material_id}`;
+    if (state.is_symmetric) {
+      return `[${top}]s / ${core}`;
+    }
+    const bottom = (state.bottom_layers || []).map((layer) => formatAngleLabel(layer.theta_deg)).join(" / ");
+    return bottom ? `${top} / ${core} / ${bottom}` : `${top} / ${core}`;
+  };
 
   const loadCustomMaterials = () => window.LaminateMaterialCatalog.loadStoredMaterials();
 
@@ -218,33 +239,88 @@
 
   const buildCoreMaterials = () => buildMaterialCatalog().filter((material) => material.material_category === "core");
   const getMaterialForLayer = (layer) => buildMaterialCatalog().find((material) => material.id === layer.material_id);
-  const getAllowedAnglesForLayer = (layer) => {
-    const material = getMaterialForLayer(layer);
-    if (material?.fiber_family === "ud") {
-      return [0];
+  const getAllowedAnglesForLayer = () => SHUFFLE_ANGLES;
+  const clone = (value) => JSON.parse(JSON.stringify(value));
+
+  const buildLayerRefs = (state) => {
+    const refs = (state.layers || []).map((layer, index) => ({
+      ref: `top:${index}`,
+      side: "top",
+      index,
+      layer,
+    }));
+    if (!state.is_symmetric) {
+      refs.push(...(state.bottom_layers || []).map((layer, index) => ({
+        ref: `bottom:${index}`,
+        side: "bottom",
+        index,
+        layer,
+      })));
     }
-    return [45, 90];
+    return refs;
   };
 
+  const parseLayerRef = (value) => {
+    const [side, rawIndex] = String(value).includes(":") ? String(value).split(":") : ["top", String(value)];
+    return { side, index: Number(rawIndex) };
+  };
+
+  const getLayerByRef = (state, layerRef) => {
+    const layers = layerRef.side === "bottom" ? (state.bottom_layers || []) : (state.layers || []);
+    return layers[layerRef.index];
+  };
+
+  const setLayerThetaByRef = (state, layerRef, theta) => {
+    const layer = getLayerByRef(state, layerRef);
+    if (layer) {
+      layer.theta_deg = theta;
+    }
+  };
+
+  const buildLayerRefLabel = (layerRef) => {
+    const sideLabel = layerRef.side === "bottom" ? "Inferior" : "Superior";
+    return `${sideLabel} ${layerRef.index + 1}`;
+  };
+
+  const flattenVisibleLayers = (state) =>
+    state.is_symmetric
+      ? [...(state.layers || [])]
+      : [...(state.layers || []), ...(state.bottom_layers || [])];
+
   const renderAngleChecklist = () => {
-    shuffleAngleChecklist.innerHTML = `
-      <label class="history-compare-toggle">
-        <input type="checkbox" class="shuffle-angle-checkbox" value="45" checked>
-        <span>+-45</span>
-      </label>
-      <label class="history-compare-toggle">
-        <input type="checkbox" class="shuffle-angle-checkbox" value="90" checked>
-        <span>+-90</span>
-      </label>
-    `;
+    const classic = new Set([0, 45, 90]);
+    shuffleAngleChecklist.innerHTML = SHUFFLE_ANGLES
+      .map((angle) => `
+        <label class="history-compare-toggle shuffle-angle-chip">
+          <input type="checkbox" class="shuffle-angle-checkbox" value="${angle}" ${classic.has(angle) ? "checked" : ""}>
+          <span>${formatAngleLabel(angle)}</span>
+        </label>
+      `)
+      .join("");
   };
 
   const parseAngles = () =>
     [...new Set(
       [...shuffleAngleChecklist.querySelectorAll(".shuffle-angle-checkbox:checked")]
-        .map((checkbox) => Math.abs(Number(checkbox.value)))
-        .filter((item) => Number.isFinite(item) && [45, 90].includes(item))
-    )];
+        .map((checkbox) => Number(checkbox.value))
+        .filter((item) => Number.isFinite(item) && SHUFFLE_ANGLES.includes(item))
+    )].sort((left, right) => left - right);
+
+  const applyAnglePreset = (preset) => {
+    const selected = new Set();
+    if (preset === "classic") {
+      [0, 45, 90].forEach((angle) => selected.add(angle));
+    } else if (preset === "15") {
+      SHUFFLE_ANGLES.filter((angle) => angle % 15 === 0).forEach((angle) => selected.add(angle));
+    } else if (preset === "all") {
+      SHUFFLE_ANGLES.forEach((angle) => selected.add(angle));
+    }
+
+    shuffleAngleChecklist.querySelectorAll(".shuffle-angle-checkbox").forEach((checkbox) => {
+      checkbox.checked = selected.has(Number(checkbox.value));
+    });
+    persistShuffleState();
+  };
 
   const showShuffleFeedback = (message) => {
     shuffleFeedbackMessage.textContent = message;
@@ -261,6 +337,7 @@
     is_symmetric: state.is_symmetric,
     core_material_id: state.core_material_id,
     insert_dummy_layer_for_odd_compatibility: state.insert_dummy_layer_for_odd_compatibility,
+    three_point_bending: state.three_point_bending,
   });
 
   const calculateVisibleTotalThickness = (request, result) => Number(result.trace?.espesor_total_mm || 0);
@@ -271,6 +348,7 @@
     const visibleLayers = request.is_symmetric
       ? request.layers.length
       : request.layers.length + (request.bottom_layers || []).length;
+    const panelConfig = request.three_point_bending || {};
     return {
       signature: buildSignature(request),
       saved_at: new Date().toISOString(),
@@ -283,6 +361,9 @@
         core_material_id: request.core_material_id,
         is_symmetric: Boolean(request.is_symmetric),
         visible_layers: visibleLayers,
+        panel_length_mm: Number(panelConfig.span_mm || 400),
+        panel_width_mm: Number(panelConfig.width_mm || 275),
+        laminate_sequence: buildLaminateSequence(request),
       },
       result_data: result,
     };
@@ -306,7 +387,7 @@
       controls: {
         mode: shuffleMode.value,
         angles: [...shuffleAngleChecklist.querySelectorAll(".shuffle-angle-checkbox:checked")].map((checkbox) => checkbox.value),
-        layer_indices: [...shuffleLayerChecklist.querySelectorAll(".shuffle-layer-checkbox:checked")].map((checkbox) => Number(checkbox.value)),
+        layer_refs: [...shuffleLayerChecklist.querySelectorAll(".shuffle-layer-checkbox:checked")].map((checkbox) => checkbox.value),
         enable_cores: shuffleEnableCores.checked,
         core_ids: [...shuffleCoreOptions.querySelectorAll(".shuffle-core-checkbox:checked")].map((checkbox) => checkbox.value),
         max_variants: shuffleMaxVariants.value,
@@ -318,36 +399,38 @@
 
   const renderBaseSummary = () => {
     const formState = baseEntry.form_state;
+    const visibleLayerCount = formState.is_symmetric
+      ? (formState.layers || []).length
+      : (formState.layers || []).length + (formState.bottom_layers || []).length;
     shuffleBaseSummary.innerHTML = `
-      <div><span>Capas visibles</span><strong>${formState.layers.length}</strong></div>
+      <div><span>Capas visibles</span><strong>${visibleLayerCount}</strong></div>
       <div><span>Core</span><strong>${escapeHtml(formState.core_material_id)}</strong></div>
-      <div><span>Simetría</span><strong>${formState.is_symmetric ? "Sí" : "No"}</strong></div>
+      <div><span>Simetria</span><strong>${formState.is_symmetric ? "Si" : "No"}</strong></div>
       <div><span>Elastic gradient theory</span><strong>${formatNumber(baseEntry.summary.elastic_gradient_theory)}</strong></div>
     `;
   };
 
   const renderBaseLayers = () => {
     shuffleBaseLayers.innerHTML = "";
-    baseEntry.form_state.layers.forEach((layer, index) => {
+    buildLayerRefs(baseEntry.form_state).forEach(({ layer, side, index }) => {
       const card = document.createElement("article");
-        card.className = "ingredient-card";
-        card.innerHTML = `
-          <div class="ingredient-head">
-            <h3>Capa ${index + 1}</h3>
-            <span>${Number(layer.theta_deg).toFixed(3)} deg</span>
-          </div>
-          <dl>
-            <div><dt>Material</dt><dd>${escapeHtml(layer.material_id)}</dd></div>
-            <div><dt>Orientación</dt><dd>${Number(layer.theta_deg).toFixed(3)} deg</dd></div>
-          </dl>
-        `;
+      card.className = "ingredient-card";
+      card.innerHTML = `
+        <div class="ingredient-head">
+          <h3>${side === "bottom" ? "Inferior" : "Superior"} ${index + 1}</h3>
+          <span>${formatAngleLabel(layer.theta_deg)}</span>
+        </div>
+        <dl>
+          <div><dt>Material</dt><dd>${escapeHtml(layer.material_id)}</dd></div>
+          <div><dt>Orientacion</dt><dd>${formatAngleLabel(layer.theta_deg)}</dd></div>
+        </dl>
+      `;
       shuffleBaseLayers.appendChild(card);
     });
   };
 
   const renderLayerChecklist = () => {
-    const selectableLayers = baseEntry.form_state.layers
-      .map((layer, index) => ({ layer, index }))
+    const selectableLayers = buildLayerRefs(baseEntry.form_state)
       .filter(({ layer }) => getMaterialForLayer(layer)?.fiber_family !== "ud");
 
     if (!selectableLayers.length) {
@@ -360,13 +443,13 @@
     }
 
     shuffleLayerChecklist.innerHTML = selectableLayers
-        .map((layer, index) => `
-          <label class="history-compare-toggle">
-            <input type="checkbox" class="shuffle-layer-checkbox" value="${layer.index}" ${index === 0 ? "checked" : ""}>
-            <span>Capa ${layer.index + 1} - ${escapeHtml(layer.layer.material_id)} - ${Number(layer.layer.theta_deg).toFixed(0)} deg</span>
-          </label>
-        `)
-        .join("");
+      .map((layer, index) => `
+        <label class="history-compare-toggle">
+          <input type="checkbox" class="shuffle-layer-checkbox" value="${layer.ref}" ${index === 0 ? "checked" : ""}>
+          <span>${buildLayerRefLabel(layer)} - ${escapeHtml(layer.layer.material_id)} - ${formatAngleLabel(layer.layer.theta_deg)}</span>
+        </label>
+      `)
+      .join("");
   };
 
   const applyShuffleControls = (controls) => {
@@ -382,9 +465,12 @@
       checkbox.checked = selectedAngles.size ? selectedAngles.has(checkbox.value) : true;
     });
 
-    const selectedLayers = new Set((controls.layer_indices || []).map((value) => Number(value)));
+    const selectedLayerRefs = controls.layer_refs?.length
+      ? controls.layer_refs.map((value) => String(value))
+      : (controls.layer_indices || []).map((value) => `top:${value}`);
+    const selectedLayers = new Set(selectedLayerRefs);
     shuffleLayerChecklist.querySelectorAll(".shuffle-layer-checkbox").forEach((checkbox, index) => {
-      checkbox.checked = selectedLayers.size ? selectedLayers.has(Number(checkbox.value)) : index === 0;
+      checkbox.checked = selectedLayers.size ? selectedLayers.has(checkbox.value) : index === 0;
     });
 
     shuffleEnableCores.checked = Boolean(controls.enable_cores);
@@ -509,10 +595,15 @@
     return "is-normal";
   };
 
-  const getSelectedLayerIndices = () =>
+  const getSelectedLayerRefs = () =>
     [...shuffleLayerChecklist.querySelectorAll(".shuffle-layer-checkbox:checked")]
-      .map((checkbox) => Number(checkbox.value))
-      .sort((left, right) => left - right);
+      .map((checkbox) => parseLayerRef(checkbox.value))
+      .sort((left, right) => {
+        if (left.side !== right.side) {
+          return left.side === "top" ? -1 : 1;
+        }
+        return left.index - right.index;
+      });
 
   const countBalancedAngles = (layers) => {
     const angles = layers
@@ -523,20 +614,21 @@
     return Math.abs(count45 - count90);
   };
 
-  const buildSingleLayerVariants = (baseLayers, selectedIndex, angles) => {
-    const allowedAngles = angles.filter((theta) => getAllowedAnglesForLayer(baseLayers[selectedIndex]).includes(theta));
+  const buildSingleLayerVariants = (baseState, selectedRef, angles) => {
+    const targetLayer = getLayerByRef(baseState, selectedRef);
+    const allowedAngles = angles.filter((theta) => getAllowedAnglesForLayer(targetLayer).includes(theta));
     return allowedAngles.map((theta) => {
-      const candidate = JSON.parse(JSON.stringify(baseLayers));
-      candidate[selectedIndex].theta_deg = theta;
+      const candidate = clone(baseState);
+      setLayerThetaByRef(candidate, selectedRef, theta);
       return candidate;
     });
   };
 
-  const buildMultiLayerVariants = (baseLayers, selectedIndices, angles, maxVariants) => {
+  const buildMultiLayerVariants = (baseState, selectedRefs, angles, maxVariants) => {
     const variants = [];
-    const current = JSON.parse(JSON.stringify(baseLayers));
-    const layerAngleOptions = selectedIndices.map((layerIndex) =>
-      angles.filter((theta) => getAllowedAnglesForLayer(baseLayers[layerIndex]).includes(theta))
+    const current = clone(baseState);
+    const layerAngleOptions = selectedRefs.map((layerRef) =>
+      angles.filter((theta) => getAllowedAnglesForLayer(getLayerByRef(baseState, layerRef)).includes(theta))
     );
     if (layerAngleOptions.some((options) => options.length === 0)) {
       return [];
@@ -546,34 +638,34 @@
       if (variants.length >= maxVariants * 8) {
         return;
       }
-      if (position >= selectedIndices.length) {
-        variants.push(JSON.parse(JSON.stringify(current)));
+      if (position >= selectedRefs.length) {
+        variants.push(clone(current));
         return;
       }
 
-      const layerIndex = selectedIndices[position];
+      const layerRef = selectedRefs[position];
       layerAngleOptions[position].forEach((theta) => {
-        current[layerIndex].theta_deg = theta;
+        setLayerThetaByRef(current, layerRef, theta);
         walk(position + 1);
       });
     };
 
     walk(0);
     const ranked = variants
-      .map((layers) => ({ layers, imbalance: countBalancedAngles(layers) }))
+      .map((state) => ({ state, imbalance: countBalancedAngles(flattenVisibleLayers(state)) }))
       .sort((left, right) => left.imbalance - right.imbalance);
     const bestImbalance = ranked.length ? ranked[0].imbalance : 0;
     return ranked
       .filter((item) => item.imbalance === bestImbalance)
       .slice(0, maxVariants)
-      .map((item) => item.layers);
+      .map((item) => item.state);
   };
 
   const buildBatchPayload = () => {
     const mode = shuffleMode.value;
-    const baseLayers = JSON.parse(JSON.stringify(baseEntry.form_state.layers));
+    const baseState = clone(baseEntry.form_state);
     const angles = parseAngles();
-    const selectedIndices = getSelectedLayerIndices();
+    const selectedRefs = getSelectedLayerRefs();
     const selectedCores = shuffleEnableCores.checked
       ? [...shuffleCoreOptions.querySelectorAll(".shuffle-core-checkbox:checked")].map((checkbox) => checkbox.value)
       : [baseEntry.form_state.core_material_id];
@@ -583,34 +675,33 @@
     if (!angles.length) {
       return [];
     }
-    if (mode === "single" && selectedIndices.length !== 1) {
+    if (mode === "single" && selectedRefs.length !== 1) {
       return [];
     }
-    if (mode === "multi" && selectedIndices.length < 2) {
+    if (mode === "multi" && selectedRefs.length < 2) {
       return [];
     }
-    if (mode === "all" && selectedIndices.length < 1) {
+    if (mode === "all" && selectedRefs.length < 1) {
       return [];
     }
 
-    const layerVariants = mode === "single"
-      ? buildSingleLayerVariants(baseLayers, selectedIndices[0], angles)
-      : buildMultiLayerVariants(baseLayers, selectedIndices, angles, maxVariants);
+    const stateVariants = mode === "single"
+      ? buildSingleLayerVariants(baseState, selectedRefs[0], angles)
+      : buildMultiLayerVariants(baseState, selectedRefs, angles, maxVariants);
 
     const variants = [];
-    layerVariants.forEach((layers, variantIndex) => {
+    stateVariants.forEach((state, variantIndex) => {
       coresToUse.forEach((coreId) => {
         if (variants.length >= maxVariants) {
           return;
         }
-        const request = JSON.parse(JSON.stringify(baseEntry.form_state));
-        request.layers = layers;
+        const request = clone(state);
         request.core_material_id = coreId;
-        const layerText = layers.map((layer) => Number(layer.theta_deg).toFixed(0)).join(" / ");
+        const layerText = buildLaminateSequence(request);
         variants.push({
           label: mode === "single"
-            ? `Capa ${selectedIndices[0] + 1} - [${layerText}] - Core ${coreId}`
-            : `Opción ${variantIndex + 1} - [${layerText}] - Core ${coreId}`,
+            ? `${buildLayerRefLabel(selectedRefs[0])} - ${layerText} - Core ${coreId}`
+            : `Opcion ${variantIndex + 1} - ${layerText} - Core ${coreId}`,
           request,
         });
       });
@@ -760,6 +851,9 @@
     const isSingle = shuffleMode.value === "single";
     const isAll = shuffleMode.value === "all";
     const checkboxes = [...shuffleLayerChecklist.querySelectorAll(".shuffle-layer-checkbox")];
+    if (!checkboxes.length) {
+      return;
+    }
     if (isAll) {
       checkboxes.forEach((checkbox) => {
         checkbox.type = "checkbox";
@@ -799,14 +893,6 @@
       });
       return;
     }
-    if (baseEntry.form_state.is_symmetric === false || (baseEntry.form_state.bottom_layers || []).length) {
-      shuffleMissingBase.hidden = false;
-      shuffleMissingBase.querySelector("h2").textContent = "Shuffle solo disponible para laminados simétricos";
-      shuffleForm.querySelectorAll("input, select, button").forEach((element) => {
-        element.disabled = true;
-      });
-      return;
-    }
     renderAngleChecklist();
     renderBaseSummary();
     renderBaseLayers();
@@ -831,6 +917,9 @@
   shuffleEnableCores.addEventListener("change", () => {
     shuffleCoreOptions.classList.toggle("sweep-core-options-disabled", !shuffleEnableCores.checked);
     persistShuffleState();
+  });
+  document.querySelectorAll(".shuffle-angle-preset").forEach((button) => {
+    button.addEventListener("click", () => applyAnglePreset(button.dataset.anglePreset));
   });
   shuffleAngleChecklist.addEventListener("change", persistShuffleState);
   shuffleCoreOptions.addEventListener("change", persistShuffleState);

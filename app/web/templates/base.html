@@ -27,6 +27,10 @@
           <a href="/materials-library" class="top-nav-link{% if request.url.path == '/materials-library' %} is-active{% endif %}">Materiales</a>
           <a href="/tutorial" class="top-nav-link{% if request.url.path == '/tutorial' %} is-active{% endif %}">Guía</a>
         </nav>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-pressed="false">
+          <span class="theme-toggle-icon" aria-hidden="true">☾</span>
+          <span class="theme-toggle-text">Oscuro</span>
+        </button>
       </div>
     </header>
     <main class="page-shell">
@@ -37,5 +41,29 @@
         <p>{{ public_storage_notice }}</p>
       </div>
     </footer>
+    <script>
+      (() => {
+        const THEME_KEY = "laminate_tool_theme_v1";
+        const root = document.documentElement;
+        const button = document.getElementById("theme-toggle");
+
+        const applyTheme = (theme) => {
+          const nextTheme = theme === "dark" ? "dark" : "light";
+          root.dataset.theme = nextTheme;
+          if (button) {
+            button.setAttribute("aria-pressed", String(nextTheme === "dark"));
+            button.querySelector(".theme-toggle-icon").textContent = nextTheme === "dark" ? "☀" : "☾";
+            button.querySelector(".theme-toggle-text").textContent = nextTheme === "dark" ? "Claro" : "Oscuro";
+          }
+        };
+
+        applyTheme(localStorage.getItem(THEME_KEY) || "light");
+        button?.addEventListener("click", () => {
+          const nextTheme = root.dataset.theme === "dark" ? "light" : "dark";
+          localStorage.setItem(THEME_KEY, nextTheme);
+          applyTheme(nextTheme);
+        });
+      })();
+    </script>
   </body>
 </html>

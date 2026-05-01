@@ -11,6 +11,9 @@ class ExportSummaryModel(BaseModel):
     core_material_id: str
     is_symmetric: bool
     visible_layers: int
+    panel_length_mm: float = 400.0
+    panel_width_mm: float = 275.0
+    laminate_sequence: str = ""
 
 
 class ExportHistoryEntryModel(BaseModel):
